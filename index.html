@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>歌コレ お礼カードメーカー</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kosugi+Maru&display=swap">
+<style>
+  :root{
+    --bg:#f4f6fb; --panel:#ffffff; --border:#dbe2f0; --text:#20283c;
+    --sub:#6b7688; --accent:#2f5fd6; --accent-text:#ffffff; --note:#8892a3;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14171f; --panel:#1c212e; --border:#2b3243; --text:#eef1f8;
+      --sub:#9aa4b8; --accent:#5b86f0; --accent-text:#0d1117; --note:#7c869c;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14171f; --panel:#1c212e; --border:#2b3243; --text:#eef1f8;
+    --sub:#9aa4b8; --accent:#5b86f0; --accent-text:#0d1117; --note:#7c869c;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; padding:0;}
+  body{background:var(--bg);}
+  .wrap{
+    max-width:1180px; margin:0 auto; padding:24px 16px 48px;
+    font-family:"Kosugi Maru","Hiragino Maru Gothic ProN",sans-serif;
+    color:var(--text);
+  }
+  h1{font-size:1.35rem; margin:0 0 4px;}
+  .sub{color:var(--sub); font-size:0.9rem; margin:0 0 20px; line-height:1.6;}
+  .layout{display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start;}
+  .panel{
+    flex:1 1 320px; min-width:280px; background:var(--panel);
+    border:1px solid var(--border); border-radius:14px; padding:18px;
+  }
+  .preview{flex:2 1 480px; min-width:280px;}
+  label{display:block; font-size:0.82rem; color:var(--sub); margin:14px 0 6px;}
+  label:first-of-type{margin-top:0;}
+  input[type="text"], textarea{
+    width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border);
+    background:var(--bg); color:var(--text); font-family:inherit; font-size:0.95rem;
+    resize:vertical;
+  }
+  button{
+    font-family:inherit; font-size:0.9rem; border-radius:9px; border:1px solid var(--border);
+    background:var(--bg); color:var(--text); padding:9px 14px; cursor:pointer; margin-top:10px;
+  }
+  button.primary{
+    background:var(--accent); color:var(--accent-text); border:none; width:100%;
+    font-size:1rem; padding:12px 14px; margin-top:18px;
+  }
+  .btnrow{display:flex; gap:8px; margin-top:18px;}
+  .btnrow button{flex:1; margin-top:0;}
+  hr{border:none; border-top:1px solid var(--border); margin:16px 0 4px;}
+  .note{font-size:0.78rem; color:var(--note); line-height:1.6; margin-top:10px;}
+  .status{font-size:0.8rem; margin-top:8px; min-height:1.2em;}
+  .status.err{color:#d64545;}
+  .status.ok{color:#2a9d5c;}
+  canvas{width:100%; height:auto; display:block; border-radius:10px; border:1px solid var(--border);}
+  footer{max-width:1180px; margin:0 auto; padding:0 16px 32px; color:var(--sub); font-size:0.75rem;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <h1>歌コレ お礼カードメーカー</h1>
+  <p class="sub">名前・曲名・コメントを入れると、お礼カードに自動で文字が入るよ。スプレッドシートの1行をそのまま貼り付けてもOK(タブ区切り/カンマ区切り対応)。</p>
+
+  <div class="layout">
+    <div class="panel">
+      <label>スプレッドシートの1行を貼り付け(名前 → 曲名 → コメント)</label>
+      <textarea id="pasteRow" rows="2" placeholder="例: ○○さん	キングスレイヤー	素敵な歌声で聴き惚れました！"></textarea>
+      <button id="parseBtn">この行を反映する</button>
+
+      <hr>
+
+      <label>名前</label>
+      <input id="nameInput" type="text" placeholder="○○">
+      <label>曲名</label>
+      <input id="songInput" type="text" placeholder="曲名">
+      <label>コメント</label>
+      <textarea id="commentInput" rows="5" placeholder="メッセージを入力"></textarea>
+
+      <div class="btnrow">
+        <button id="copyBtn" class="primary">画像をコピー</button>
+        <button id="saveBtn">画像を保存</button>
+      </div>
+      <div id="status" class="status"></div>
+      <p class="note">コピーした画像は、DMの入力欄に直接貼り付けられるよ(スマホもOK)。貼り付けできない場合は「画像を保存」してから添付してね。自動送信は安全のため対応してないよ。</p>
+    </div>
+
+    <div class="preview">
+      <canvas id="cardCanvas" width="1536" height="1024"></canvas>
+    </div>
+  </div>
+</div>
+
+<footer>個人用ツール・歌コレ2026 Autumn お礼カード</footer>
+
+<script>
+(function(){
+  var canvas = document.getElementById('cardCanvas');
+  var ctx = canvas.getContext('2d');
+  var bgImg = new Image();
+  var bgLoaded = false;
+
+  bgImg.onload = function(){ bgLoaded = true; render(); };
+  bgImg.src = 'template.jpg';
+
+  if (document.fonts && document.fonts.load) {
+    Promise.all([
+      document.fonts.load('600 34px "Kosugi Maru"'),
+      document.fonts.load('30px "Kosugi Maru"')
+    ]).then(render).catch(render);
+  }
+
+  function fitText(text, x, baselineY, maxWidth, weight, startSize){
+    var size = startSize;
+    ctx.font = weight + ' ' + size + 'px "Kosugi Maru", sans-serif';
+    while (ctx.measureText(text).width > maxWidth && size > 14) {
+      size -= 1;
+      ctx.font = weight + ' ' + size + 'px "Kosugi Maru", sans-serif';
+    }
+    ctx.fillText(text, x, baselineY);
+  }
+
+  function wrapAndDraw(text, x, startY, maxWidth, lineHeight, maxLines, size){
+    ctx.font = size + 'px "Kosugi Maru", sans-serif';
+    var lines = [];
+    var current = '';
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (ch === '\n') { lines.push(current); current = ''; continue; }
+      var test = current + ch;
+      if (ctx.measureText(test).width > maxWidth && current.length > 0) {
+        lines.push(current);
+        current = ch;
+      } else {
+        current = test;
+      }
+    }
+    if (current || lines.length === 0) lines.push(current);
+    var shown = lines.slice(0, maxLines);
+    for (var j = 0; j < shown.length; j++) {
+      ctx.fillText(shown[j], x, startY + j * lineHeight);
+    }
+  }
+
+  function render(){
+    if (!bgLoaded) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#20304f';
+    ctx.textBaseline = 'alphabetic';
+
+    var name = document.getElementById('nameInput').value || '';
+    fitText(name, 215, 345, 330, '600', 34);
+
+    var song = document.getElementById('songInput').value || '';
+    fitText(song, 845, 345, 335, '600', 32);
+
+    var comment = document.getElementById('commentInput').value || '';
+    wrapAndDraw(comment, 112, 474, 1160, 56, 6, '30px');
+  }
+
+  ['nameInput','songInput','commentInput'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', render);
+  });
+
+  document.getElementById('parseBtn').addEventListener('click', function(){
+    var raw = document.getElementById('pasteRow').value;
+    if (!raw.trim()) return;
+    var parts = raw.split('\t');
+    if (parts.length < 2) parts = raw.split(',');
+    var n = (parts[0] || '').trim();
+    var s = (parts[1] || '').trim();
+    var rest = parts.slice(2).join(parts[0].indexOf('\t') !== -1 ? '\t' : ',').trim();
+    document.getElementById('nameInput').value = n;
+    document.getElementById('songInput').value = s;
+    document.getElementById('commentInput').value = rest;
+    render();
+  });
+
+  function setStatus(msg, kind){
+    var el = document.getElementById('status');
+    el.textContent = msg || '';
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function downloadBlob(filename, blob){
+    try {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', function(){
+    render();
+    canvas.toBlob(function(blob){
+      var name = (document.getElementById('nameInput').value || 'card').trim();
+      var filename = '歌コレお礼_' + (name || 'card') + '.png';
+      var ok = downloadBlob(filename, blob);
+      setStatus(ok ? '保存しました' : 'プレビュー画像を長押しして「画像を保存」で保存してね。', ok ? 'ok' : 'err');
+    }, 'image/png');
+  });
+
+  document.getElementById('copyBtn').addEventListener('click', function(){
+    render();
+    if (!(navigator.clipboard && window.ClipboardItem)) {
+      setStatus('この端末はコピーに対応してないみたい。「画像を保存」を使ってね。', 'err');
+      return;
+    }
+    var blobPromise = new Promise(function(resolve, reject){
+      canvas.toBlob(function(blob){
+        if (blob) resolve(blob); else reject(new Error('toBlob failed'));
+      }, 'image/png');
+    });
+    try {
+      var item = new ClipboardItem({ 'image/png': blobPromise });
+      navigator.clipboard.write([item]).then(function(){
+        setStatus('コピーしました。DMの入力欄に貼り付けてね', 'ok');
+      }).catch(function(){
+        setStatus('コピーに失敗したよ。「画像を保存」を使ってね。', 'err');
+      });
+    } catch (e) {
+      setStatus('コピーに失敗したよ。「画像を保存」を使ってね。', 'err');
+    }
+  });
+})();
+</script>
+</body>
+</html>
