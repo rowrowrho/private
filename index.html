@@ -73,7 +73,10 @@
     <div class="panel">
       <label>スプレッドシートの1行を貼り付け(名前 → 曲名 → コメント)</label>
       <textarea id="pasteRow" rows="2" placeholder="例: ○○さん	キングスレイヤー	素敵な歌声で聴き惚れました！"></textarea>
-      <button id="parseBtn">この行を反映する</button>
+      <div class="btnrow">
+        <button id="parseBtn" class="primary">この行を反映する</button>
+        <button id="clearBtn">クリア</button>
+      </div>
 
       <hr>
 
@@ -206,6 +209,15 @@
     document.getElementById('nameInput').value = n;
     document.getElementById('songInput').value = s;
     document.getElementById('commentInput').value = rest;
+    render();
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', function(){
+    document.getElementById('pasteRow').value = '';
+    document.getElementById('nameInput').value = '';
+    document.getElementById('songInput').value = '';
+    document.getElementById('commentInput').value = '';
+    setStatus('', '');
     render();
   });
 
