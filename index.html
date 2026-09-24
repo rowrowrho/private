@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>歌コレ お礼カードメーカー</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kosugi+Maru&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
     --bg:#f4f6fb; --panel:#ffffff; --border:#dbe2f0; --text:#20283c;
@@ -89,6 +90,14 @@
       </div>
       <div id="status" class="status"></div>
       <p class="note">コピーした画像は、DMの入力欄に直接貼り付けられるよ(スマホもOK)。貼り付けできない場合は「画像を保存」してから添付してね。自動送信は安全のため対応してないよ。</p>
+
+      <hr>
+
+      <label>まとめて生成(1行1人分、名前 → 曲名 → コメントをタブ区切りで貼り付け)</label>
+      <textarea id="bulkRows" rows="6" placeholder="○○さん	キングスレイヤー	素敵でした！&#10;△△さん	フューエル	聴き惚れました！"></textarea>
+      <button id="bulkGenBtn" class="primary">まとめて生成してZIP保存</button>
+      <div id="bulkStatus" class="status"></div>
+      <p class="note">スプレッドシートで名前・曲名・コメントの3列を選んでコピーし、そのままここに貼り付けるとまとめて作れるよ。</p>
     </div>
 
     <div class="preview">
@@ -148,21 +157,38 @@
     }
   }
 
-  function render(){
-    if (!bgLoaded) return;
+  function renderCardFor(name, song, comment){
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#20304f';
     ctx.textBaseline = 'alphabetic';
+    fitText(name || '', 215, 345, 330, '600', 34);
+    fitText(song || '', 845, 345, 335, '600', 32);
+    wrapAndDraw(comment || '', 112, 474, 1160, 56, 6, '30px');
+  }
 
-    var name = document.getElementById('nameInput').value || '';
-    fitText(name, 215, 345, 330, '600', 34);
+  function render(){
+    if (!bgLoaded) return;
+    renderCardFor(
+      document.getElementById('nameInput').value,
+      document.getElementById('songInput').value,
+      document.getElementById('commentInput').value
+    );
+  }
 
-    var song = document.getElementById('songInput').value || '';
-    fitText(song, 845, 345, 335, '600', 32);
-
-    var comment = document.getElementById('commentInput').value || '';
-    wrapAndDraw(comment, 112, 474, 1160, 56, 6, '30px');
+  function parseBulkRows(raw){
+    return raw.split('\n').map(function(l){ return l; })
+      .filter(function(l){ return l.trim().length > 0; })
+      .map(function(line){
+        var parts = line.split('\t');
+        if (parts.length < 2) parts = line.split(',');
+        var joinChar = line.indexOf('\t') !== -1 ? '\t' : ',';
+        return {
+          name: (parts[0] || '').trim(),
+          song: (parts[1] || '').trim(),
+          comment: (parts.slice(2).join(joinChar) || '').trim()
+        };
+      });
   }
 
   ['nameInput','songInput','commentInput'].forEach(function(id){
@@ -236,6 +262,39 @@
     } catch (e) {
       setStatus('コピーに失敗したよ。「画像を保存」を使ってね。', 'err');
     }
+  });
+
+  function setBulkStatus(msg, kind){
+    var el = document.getElementById('bulkStatus');
+    el.textContent = msg || '';
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  document.getElementById('bulkGenBtn').addEventListener('click', async function(){
+    if (!bgLoaded) { setBulkStatus('台紙の画像を読み込み中、少し待ってから試してね。', 'err'); return; }
+    if (typeof JSZip === 'undefined') { setBulkStatus('ZIP機能の読み込みに失敗したよ。ページを再読み込みして試してね。', 'err'); return; }
+    var rows = parseBulkRows(document.getElementById('bulkRows').value);
+    if (!rows.length) { setBulkStatus('貼り付けられた行が見つからないよ。', 'err'); return; }
+
+    var zip = new JSZip();
+    var usedNames = {};
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      setBulkStatus('生成中… (' + (i + 1) + ' / ' + rows.length + ')');
+      renderCardFor(r.name, r.song, r.comment);
+      var blob = await new Promise(function(resolve){ canvas.toBlob(resolve, 'image/png'); });
+      var base = r.name || ('card' + (i + 1));
+      var count = usedNames[base] || 0;
+      usedNames[base] = count + 1;
+      var fname = '歌コレお礼_' + base + (count > 0 ? '_' + (count + 1) : '') + '.png';
+      zip.file(fname, blob);
+    }
+
+    setBulkStatus('ZIPを作成中…');
+    var zipBlob = await zip.generateAsync({ type: 'blob' });
+    var ok = downloadBlob('歌コレお礼カード_一括.zip', zipBlob);
+    render();
+    setBulkStatus(ok ? (rows.length + '件、ZIPで保存したよ') : 'ZIPの保存に失敗したよ。', ok ? 'ok' : 'err');
   });
 })();
 </script>
