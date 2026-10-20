@@ -615,6 +615,10 @@ var PAIRS = [
   { a:['ta'],   b:['ct'] },            /* 縮めて厚く ⇔ 伸ばして薄く */
   { a:['o_up'], b:['o_down'] }         /* 喉頭を上げる ⇔ 下げる */
 ];
+/* 輪状甲状筋を引くと、胸骨甲状筋（舌骨下筋群）が喉頭を下に支える（アンカー）ので、舌骨下筋群もいっしょに強まる。
+   輪状甲状筋を動かしたときだけ、舌骨下筋群がついてくる（舌骨下筋群を単独で動かしても、輪状甲状筋は動かない） */
+var FOLLOW_ON = true;       /* false にすると、この連動をやめる（1行で戻せる） */
+var FOLLOW = .5;            /* 輪状甲状筋の動きに対して、舌骨下筋群がついてくる割合（0〜1） */
 function lname(id){ for (var i=0;i<LAB.length;i++) if (LAB[i].id===id) return LAB[i].name; return id; }
 function coupleFrom(id){
   var moved=[], i, j;
@@ -624,6 +628,12 @@ function coupleFrom(id){
     var v=state.pull[id];
     for (j=0;j<other.length;j++){ state.pull[other[j]]=Math.round((1-v)*100)/100; moved.push(other[j]); }
     for (j=0;j<mine.length;j++){ if (mine[j]!==id){ state.pull[mine[j]]=v; moved.push(mine[j]); } }
+  }
+  if (FOLLOW_ON && (id==='ct' || moved.indexOf('ct')>=0)){
+    var dn=clampv(.5+FOLLOW*(state.pull.ct-.5),0,1);
+    state.pull.o_down=Math.round(dn*100)/100; state.pull.o_up=Math.round((1-dn)*100)/100;
+    if (moved.indexOf('o_down')<0) moved.push('o_down');
+    if (moved.indexOf('o_up')<0) moved.push('o_up');
   }
   return moved;
 }
