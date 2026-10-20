@@ -141,6 +141,7 @@
   .extra p{font-size:12.5px; color:var(--text-dim); line-height:1.7; margin-bottom:8px;}
   .extra .seg button{background:#fff; border:1.5px solid var(--line);}
   .extra .seg button[aria-pressed="true"]{background:var(--blue); color:#fff; border-color:var(--blue);}
+  .linkx{margin-top:6px; font-size:12.5px; color:var(--text-dim); line-height:1.7; min-height:1.7em;}
   .lmsg{margin-top:8px; font-size:12.5px; color:#7A520A; min-height:1em;}
   .read{margin-top:16px; padding:14px; border-radius:14px; background:var(--sky);}
   .read dl{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:13.5px;}
@@ -198,6 +199,8 @@
       <button type="button" class="play" id="play" aria-pressed="false">▶ 音を鳴らす</button>
     </div>
     <p class="lmsg" id="lmsg" role="status"></p>
+    <div class="seg" id="linkrow" style="margin-top:10px"><b>筋肉の連動</b><button type="button" id="linkBtn" aria-pressed="true">ON</button></div>
+    <p class="linkx" id="linkmsg" role="status">ON：反対にはたらく筋肉は、一方を強く引くと、もう一方が自然に下がります。</p>
     <div class="presets"><h3>お手本の組み合わせ（押すと鳴ります）</h3><div class="seg" id="presets"></div></div>
     <div id="sliders"></div>
     <div class="read"><div id="readout"></div></div>
@@ -543,6 +546,34 @@ function morphTarget(){
   }
   return { G:G, n:n, v:v, C:C, r:r };
 }
+/* 反対にはたらく筋肉どうし：合計に上限をつけて、一方を強く引くともう一方が下がる。
+   実際には両方が同時にはたらく（共収縮）こともあるので、完全な「どちらか一方」にはしていない */
+var LINK_ON = true;         /* false にすると、連動なしで1本ずつ自由に動かせる（初期状態の切り替え） */
+var PAIRS = [
+  { a:['pca'],  b:['lca','ia'], max:1.1 },     /* 開く ⇔ 閉じる */
+  { a:['ta'],   b:['ct'],       max:1.2 },     /* 縮めて厚く ⇔ 伸ばして薄く（ミックスは両方中くらい） */
+  { a:['o_up'], b:['o_down'],   max:1.1 }      /* 喉頭を上げる ⇔ 下げる */
+];
+function lname(id){ for (var i=0;i<LAB.length;i++) if (LAB[i].id===id) return LAB[i].name; return id; }
+function coupleFrom(id){
+  var moved=[], i, j, k;
+  for (i=0;i<PAIRS.length;i++){
+    var P=PAIRS[i], mine=null, other=null;
+    if (P.a.indexOf(id)>=0){ mine=P.a; other=P.b; } else if (P.b.indexOf(id)>=0){ mine=P.b; other=P.a; } else continue;
+    var v=state.pull[id];
+    for (j=0;j<other.length;j++){
+      var o=other[j], lim=Math.max(0, P.max-v);
+      if (state.pull[o]>lim+1e-6){ state.pull[o]=Math.round(lim*100)/100; moved.push(o); }
+    }
+  }
+  return moved;
+}
+function linkNote(moved){
+  var e=$('linkmsg'); if (!e) return;
+  if (!LINK_ON){ e.textContent='OFF：1本ずつ自由に動かせます（実際には起こりにくい組み合わせも作れます）。'; return; }
+  if (moved && moved.length){ var nm=moved.map(lname); e.textContent='連動：'+nm.join('・')+'が下がりました。'; }
+  else e.textContent='ON：反対にはたらく筋肉は、一方を強く引くと、もう一方が自然に下がります。';
+}
 function lmsg(t){ var e=$('lmsg'); if (e) e.textContent=t||''; }
 
 function labApply(instant){
@@ -676,7 +707,10 @@ function renderLab(){
     function sync(){ $('sv_'+L.id).textContent=Math.round(state.pull[L.id]*100)+'%'; }
     sync();
     inp.addEventListener('input', function(){
-      state.pull[L.id]=inp.value/100; sync(); markCur(L.id);
+      state.pull[L.id]=inp.value/100;
+      var mv = LINK_ON ? coupleFrom(L.id) : [];
+      if (mv.length) syncSliders(); linkNote(mv);
+      sync(); markCur(L.id);
       if (state.sel!==L.id) select(L.id,false); else renderFig();
       labUpdate();
     });
@@ -703,6 +737,10 @@ function syncSliders(){ LAB.forEach(function(L){ var i=$('si_'+L.id); if (i){ i.
     b.addEventListener('click', function(){ extraPlay(E.id); });
     ex.appendChild(b);
   });
+  var lb=$('linkBtn');
+  function drawLink(){ lb.setAttribute('aria-pressed', LINK_ON?'true':'false'); lb.textContent = LINK_ON?'ON':'OFF'; linkNote(null); }
+  lb.addEventListener('click', function(){ LINK_ON=!LINK_ON; drawLink(); track('lab_link',{on:LINK_ON}); });
+  drawLink();
   $('play').addEventListener('click', function(){
     if (lab.playing || lab.want) labStop(); else labStart();
   });
