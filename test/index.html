@@ -488,7 +488,7 @@ function select(id, fromChip){
 /* ===== 録音ラボ（ρの録音をフェーダーで切り替え・なめらかにつなぐ） ===== */
 var LAB_ON = true;
 var SHOW_RAW = false;       /* true にすると「本物の録音を聴く」コーナーを表示（音声14本が必要） */          /* false にするとこのコーナーを丸ごと隠す（1行で戻せる） */
-var LAB_V = 2;              /* 音声ファイルを差し替えたら +1 */
+var LAB_V = 3;              /* 音声ファイルを差し替えたら +1 */
 var AUDIO_BASES = ['atlas_audio/', '../atlas_audio/', ''];   /* 音声フォルダの場所の候補（上から順に探す） */
 var audioIdx = 0;           /* 見つかった場所の番号 */
 var LAB = [
