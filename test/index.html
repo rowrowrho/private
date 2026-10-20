@@ -199,8 +199,7 @@
       <button type="button" class="play" id="play" aria-pressed="false">▶ 音を鳴らす</button>
     </div>
     <p class="lmsg" id="lmsg" role="status"></p>
-    <div class="seg" id="linkrow" style="margin-top:10px"><b>筋肉の連動</b><button type="button" id="linkBtn" aria-pressed="true">ON</button></div>
-    <p class="linkx" id="linkmsg" role="status">ON：反対にはたらく筋肉どうしは、合計がいつも100％になります（開く＋閉じる／厚く＋薄く／上げる＋下げる）。</p>
+    <p class="linkx" id="linkmsg" role="status">反対にはたらく筋肉どうしは、合計がいつも100％になります（開く＋閉じる／厚く＋薄く／上げる＋下げる）。</p>
     <div class="presets"><h3>お手本の組み合わせ（押すと鳴ります）</h3><div class="seg" id="presets"></div></div>
     <div id="sliders"></div>
     <div class="read"><div id="readout"></div></div>
@@ -209,7 +208,7 @@
       <p>フェーダーの音は「ふつうの声」の音色を変えたものです。本物の録音と聴き比べてみてください。最後の5つは、フェーダーでは動かせない「音の高さ」や「地声から裏声へのつながり」の録音です。</p>
       <div class="seg" id="extras"></div>
     </div>
-    <p class="warn-s">※ 音量に注意してください。最初は小さめの音量から聞いてね。音が出ないときは、iPhoneの消音スイッチも確認してください。<br>※ 裏声の音色は、C5で録音した裏声を見本にしています（声の高さはC4のまま、音色だけ近づけます）。<br>※ 変わるのは音色（高音の量・厚み・息もれの量など）です。押し込みのザラつきや、裏声ならではの質感までは再現しきれません。<br>※ 各声に割り当てた筋肉の値は、発声の仕組みから考えた「目安のイメージ」で、実測ではありません。喉の中は見えないので、「この声のとき、この筋肉が主に働いていると考えられる」という位置づけです。実際の発声は、これらの筋肉が同時にからみ合って決まります。</p>
+    <p class="warn-s">※ 音量に注意してください。最初は小さめの音量から聞いてね。音が出ないときは、iPhoneの消音スイッチも確認してください。<br>※ 裏声に近づくと、C5で録音した裏声の原音に切り替わります（声の高さがオクターブ上がります）。<br>※ 変わるのは音色（高音の量・厚み・息もれの量など）です。押し込みのザラつきや、裏声ならではの質感までは再現しきれません。<br>※ 各声に割り当てた筋肉の値は、発声の仕組みから考えた「目安のイメージ」で、実測ではありません。喉の中は見えないので、「この声のとき、この筋肉が主に働いていると考えられる」という位置づけです。実際の発声は、これらの筋肉が同時にからみ合って決まります。</p>
   </section>
 
   <section class="cta">
@@ -540,17 +539,21 @@ function lvWeights(){
 function morphTarget(){
   var r=lvWeights(), G=[], k, i;
   for (k=0;k<MORPH.freqs.length;k++) G.push(0);
-  var n=0, v=0, C=0;
+  var n=0, v=0, C=0, w07=0, rest;
+  for (i=0;i<LV.length;i++) if (LV[i].id==='07') w07=r.w[i];
+  rest=Math.max(1e-6, 1-w07);
   for (i=0;i<LV.length;i++){
-    var P=MORPH.res[LV[i].id], w=r.w[i];
+    if (LV[i].id==='07') continue;                     /* 裏声はC5の録音の原音をそのまま使う（下で別に鳴らす） */
+    var P=MORPH.res[LV[i].id], w=r.w[i]/rest;
     for (k=0;k<G.length;k++) G[k]+=w*P.G[k];
     n+=w*P.n; v+=w*P.v; C+=w*P.C;
   }
-  return { G:G, n:n, v:v, C:C, r:r };
+  var bs=Math.sqrt(Math.max(0,1-w07));                 /* 裏声へ近づくほど、ふつうの声ベースが引いて、C5の裏声が出てくる */
+  return { G:G, n:n*bs, v:v*bs, C:C, r:r, raw:Math.sqrt(w07) };
 }
 /* 反対にはたらく筋肉どうし：合計がいつも100%になるように連動する
    （舌骨・甲状軟骨・輪状軟骨・披裂軟骨の位置関係が、どちらかが動くともう片方も決まるため） */
-var LINK_ON = false;         /* false にすると、連動なしで1本ずつ自由に動かせる（初期状態の切り替え） */
+var LINK_ON = true;         /* false にすると、連動なしで1本ずつ自由に動かせる（1行で戻せる） */
 var PAIRS = [
   { a:['pca'],  b:['lca','ia'] },      /* 開く ⇔ 閉じる（閉じる2本は一緒に動く） */
   { a:['ta'],   b:['ct'] },            /* 縮めて厚く ⇔ 伸ばして薄く */
@@ -569,7 +572,7 @@ function coupleFrom(id){
   return moved;
 }
 function linkAll(){ for (var i=0;i<PAIRS.length;i++) coupleFrom(PAIRS[i].a[0]); }   /* ONにした直後に、ぜんぶ合計100%へそろえる */
-var LINK_ON_TXT='ON：反対にはたらく筋肉どうしは、合計がいつも100％になります（開く＋閉じる／厚く＋薄く／上げる＋下げる）。';
+var LINK_ON_TXT='反対にはたらく筋肉どうしは、合計がいつも100％になります（開く＋閉じる／厚く＋薄く／上げる＋下げる）。';
 function linkNote(moved){
   var e=$('linkmsg'); if (!e) return;
   if (!LINK_ON){ e.textContent='OFF：1本ずつ自由に動かせます（実際には起こりにくい組み合わせも作れます）。'; return; }
@@ -585,6 +588,7 @@ function labApply(instant){
   lab.g.v.gain.setTargetAtTime(m.v, t, tc);
   lab.g.n.gain.setTargetAtTime(m.n, t, tc);
   lab.g.c.gain.setTargetAtTime(Math.pow(10, m.C/20), t, tc);
+  lab.g.r.gain.setTargetAtTime(m.raw, t, tc);
 }
 function fetchAudio(name, i){
   return fetch(AUDIO_BASES[i]+name+'?v='+LAB_V).then(function(r){
@@ -597,7 +601,7 @@ function fetchAudio(name, i){
 function lvLoadAll(done, fail){
   if (lab.bufs){ done(); return; }
   if (lab.loading) return;
-  lab.loading=true; var bufs={}, n=0, bad=false, ids=['01','03'];
+  lab.loading=true; var bufs={}, n=0, bad=false, ids=['01','03','07c5'];
   ids.forEach(function(id){
     fetchAudio('loop'+id+'.wav', audioIdx).then(function(ab){
       lab.ctx.decodeAudioData(ab, function(buf){
@@ -626,7 +630,8 @@ function labStart(){
     lmsg('');
     if (!lab.want) { setPlayBtn(false); return; }
     var c=lab.ctx, G={ f:[] };
-    G.sv=loopSrc(c, lab.bufs['01']); G.sn=loopSrc(c, lab.bufs['03']);
+    G.sv=loopSrc(c, lab.bufs['01']); G.sn=loopSrc(c, lab.bufs['03']); G.sr=loopSrc(c, lab.bufs['07c5']);
+    G.r=c.createGain(); G.r.gain.value=0; G.sr.connect(G.r);
     G.v=c.createGain(); G.v.gain.value=0; G.n=c.createGain(); G.n.gain.value=0;
     G.c=c.createGain(); G.c.gain.value=1; G.m=c.createGain(); G.m.gain.value=0;
     G.sv.connect(G.v);
@@ -636,10 +641,10 @@ function labStart(){
       prev.connect(f); prev=f; G.f.push(f);
     }
     prev.connect(G.c); G.sn.connect(G.n); G.n.connect(G.c);
-    G.c.connect(G.m); G.m.connect(c.destination);
+    G.c.connect(G.m); G.r.connect(G.m); G.m.connect(c.destination);
     lab.g=G; lab.playing=true;
     labApply(true);
-    G.sv.start(0); G.sn.start(0);
+    G.sv.start(0); G.sn.start(0); G.sr.start(0);
     G.m.gain.setTargetAtTime(.85, c.currentTime, .05);
     setPlayBtn(true); track('lab_play');
   }, function(){
@@ -651,7 +656,7 @@ function labStop(){
   if (lab.playing && lab.g){
     var G=lab.g, c=lab.ctx;
     G.m.gain.setTargetAtTime(0, c.currentTime, .04);
-    setTimeout(function(){ try{ G.sv.stop(); G.sn.stop(); }catch(e){} try{ G.m.disconnect(); }catch(e){} }, 240);
+    setTimeout(function(){ try{ G.sv.stop(); G.sn.stop(); G.sr.stop(); }catch(e){} try{ G.m.disconnect(); }catch(e){} }, 240);
   }
   lab.g=null; lab.playing=false;
   setPlayBtn(false);
@@ -740,10 +745,7 @@ function syncSliders(){ LAB.forEach(function(L){ var i=$('si_'+L.id); if (i){ i.
     b.addEventListener('click', function(){ extraPlay(E.id); });
     ex.appendChild(b);
   });
-  var lb=$('linkBtn');
-  function drawLink(){ lb.setAttribute('aria-pressed', LINK_ON?'true':'false'); lb.textContent = LINK_ON?'ON':'OFF'; linkNote(null); }
-  lb.addEventListener('click', function(){ LINK_ON=!LINK_ON; if (LINK_ON){ linkAll(); syncSliders(); renderFig(); labUpdate(); } drawLink(); track('lab_link',{on:LINK_ON}); });
-  drawLink();
+  linkNote(null);
   $('play').addEventListener('click', function(){
     if (lab.playing || lab.want) labStop(); else labStart();
   });
