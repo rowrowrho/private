@@ -486,6 +486,8 @@ function select(id, fromChip){
 /* ===== 録音ラボ（ρの録音をフェーダーで切り替え・なめらかにつなぐ） ===== */
 var LAB_ON = true;          /* false にするとこのコーナーを丸ごと隠す（1行で戻せる） */
 var LAB_V = 1;              /* 音声ファイルを差し替えたら +1 */
+var AUDIO_BASES = ['atlas_audio/', '../atlas_audio/', ''];   /* 音声フォルダの場所の候補（上から順に探す） */
+var audioIdx = 0;           /* 見つかった場所の番号 */
 var LAB = [
   { id:'pca',    name:'後輪状披裂筋', tag:'開く',   lo:'ゆるめる', hi:'強く引く' },
   { id:'lca',    name:'外側輪状披裂筋', tag:'閉じる', lo:'ゆるめる', hi:'強く引く' },
@@ -537,14 +539,20 @@ function labApply(instant){
     lab.gain[LV[i].id].gain.setTargetAtTime(Math.sqrt(r.w[i]), t, tc);   /* 2乗して足すと1になる＝音量が一定 */
   }
 }
+function fetchAudio(name, i){
+  return fetch(AUDIO_BASES[i]+name+'?v='+LAB_V).then(function(r){
+    if (!r.ok) throw new Error('http'); audioIdx=i; return r.arrayBuffer();
+  }).catch(function(err){
+    if (i+1<AUDIO_BASES.length) return fetchAudio(name, i+1);
+    throw err;
+  });
+}
 function lvLoadAll(done, fail){
   if (lab.bufs){ done(); return; }
   if (lab.loading) return;
   lab.loading=true; var bufs={}, n=0, bad=false;
   LV.forEach(function(L){
-    fetch('loop'+L.id+'.wav?v='+LAB_V).then(function(r){
-      if (!r.ok) throw new Error('http'); return r.arrayBuffer();
-    }).then(function(ab){
+    fetchAudio('loop'+L.id+'.wav', audioIdx).then(function(ab){
       lab.ctx.decodeAudioData(ab, function(buf){
         bufs[L.id]=buf; n++; if (n===LV.length && !bad){ lab.bufs=bufs; lab.loading=false; done(); }
       }, function(){ if (!bad){ bad=true; lab.loading=false; fail(); } });
@@ -598,7 +606,7 @@ function labUpdate(){
 }
 
 /* 「ほかの声」は録音をそのまま鳴らす */
-var xAudio=new Audio(); xAudio.preload='none'; var xCur=null;
+var xAudio=new Audio(); xAudio.preload='none'; var xCur=null, xTry=0;
 function extraRefresh(){
   var bs=document.querySelectorAll('#extras button');
   for (var i=0;i<bs.length;i++){
@@ -612,12 +620,14 @@ function extraPlay(id){
   if (xCur===id){ extraStop(); return; }
   if (lab.playing || lab.want) labStop();
   lmsg(''); try{ xAudio.pause(); }catch(e){}
-  xAudio.src='voice'+id+'.mp3?v='+LAB_V; xCur=id; extraRefresh(); track('lab_extra',{voice:id});
+  xAudio.src=AUDIO_BASES[audioIdx]+'voice'+id+'.mp3?v='+LAB_V; xCur=id; xTry=0; extraRefresh(); track('lab_extra',{voice:id});
   var p=xAudio.play();
   if (p && p.catch){ p.catch(function(){ xCur=null; extraRefresh(); lmsg('音を再生できませんでした。もう一度タップしてください。'); }); }
 }
 xAudio.addEventListener('ended', function(){ xCur=null; extraRefresh(); });
-xAudio.addEventListener('error', function(){ if (xCur){ xCur=null; extraRefresh(); lmsg('音声を読み込めませんでした。少し待ってからもう一度タップしてください。'); } });
+xAudio.addEventListener('error', function(){
+  if (xCur && xTry<AUDIO_BASES.length-1){ xTry++; audioIdx=(audioIdx+1)%AUDIO_BASES.length; xAudio.src=AUDIO_BASES[audioIdx]+'voice'+xCur+'.mp3?v='+LAB_V; xAudio.play(); return; }
+  if (xCur){ xCur=null; extraRefresh(); lmsg('音声を読み込めませんでした。少し待ってからもう一度タップしてください。'); } });
 
 function renderRead(){
   var r=lvWeights(), idx=[], i;
