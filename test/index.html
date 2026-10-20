@@ -141,6 +141,13 @@
   .extra p{font-size:12.5px; color:var(--text-dim); line-height:1.7; margin-bottom:8px;}
   .extra .seg button{background:#fff; border:1.5px solid var(--line);}
   .extra .seg button[aria-pressed="true"]{background:var(--blue); color:#fff; border-color:var(--blue);}
+  .stick{position:static; top:auto; z-index:auto; border-bottom:none; padding:0;}   /* 図は画面に固定しない */
+  .presets select{width:100%; padding:11px 12px; border-radius:14px; border:1.5px solid var(--line); background:#fff; color:var(--navy); font-family:inherit; font-size:16px; font-weight:700;}
+  .sl{margin-top:8px !important; padding:8px 12px 6px !important;}   /* フェーダー1本ぶんの縦の幅をつめる */
+  .sl-row{display:flex; align-items:center; gap:8px; margin-top:2px;}
+  .sl-end{font-size:10.5px; color:var(--text-dim); white-space:nowrap; min-width:3.6em;}
+  .sl-end:last-child{text-align:right;}
+  .sl .sl-row input[type=range]{flex:1; width:auto; min-width:0; margin:0; height:28px;}
   .linkx{margin-top:6px; font-size:12.5px; color:var(--text-dim); line-height:1.7; min-height:1.7em;}
   .lmsg{margin-top:8px; font-size:12.5px; color:#7A520A; min-height:1em;}
   .read{margin-top:16px; padding:14px; border-radius:14px; background:var(--sky);}
@@ -200,7 +207,7 @@
     </div>
     <p class="lmsg" id="lmsg" role="status"></p>
     <p class="linkx" id="linkmsg" role="status"></p>
-    <div class="presets"><h3>お手本の声（押すと、録音そのままが鳴ります）</h3><div class="seg" id="presets"></div></div>
+    <div class="presets"><h3>お手本の声（選ぶと、録音そのままが鳴ります）</h3><select id="presets" aria-label="お手本の声を選ぶ"></select></div>
     <div id="sliders"></div>
     <div class="read"><div id="readout"></div></div>
     <div class="extra">
@@ -891,14 +898,16 @@ function renderLab(){
   LAB.forEach(function(L){
     var d=document.createElement('div'); d.className='sl'; d.id='sl_'+L.id;
     d.innerHTML='<div class="sl-top"><span class="sl-name">'+L.name+'<small>'+L.tag+'</small></span><span class="sl-val" id="sv_'+L.id+'"></span></div>'
+      +'<div class="sl-row"><span class="sl-end">'+L.lo+'</span>'
       +'<input type="range" min="0" max="100" step="1" aria-label="'+L.name+'の引っぱり具合" id="si_'+L.id+'">'
-      +'<div class="sl-ends"><span>'+L.lo+'</span><span>'+L.hi+'</span></div>';
+      +'<span class="sl-end">'+L.hi+'</span></div>';
     box.appendChild(d);
     var inp=d.querySelector('input'); inp.value=Math.round(state.pull[L.id]*100);
     function sync(){ $('sv_'+L.id).textContent=Math.round(state.pull[L.id]*100)+'%'; }
     sync();
     inp.addEventListener('input', function(){
       if (rawId) rawToMorph();
+      { var ps=$('presets'); if (ps) ps.value=''; }
       var snap=JSON.parse(JSON.stringify(state.pull));
       state.pull[L.id]=inp.value/100;
       var mv = LINK_ON ? coupleFrom(L.id, snap) : [];
@@ -917,15 +926,23 @@ function syncSliders(){ LAB.forEach(function(L){ var i=$('si_'+L.id); if (i){ i.
 (function initLab(){
   if (!LAB_ON){ var sec=$('lab'); if (sec) sec.hidden=true; return; }
   if (!SHOW_RAW){ var xe=document.querySelector('.extra'); if (xe) xe.hidden=true; }
-  var pr=$('presets'); PRESETS.forEach(function(P){
-    var b=document.createElement('button'); b.type='button'; b.textContent=P.name;
-    b.addEventListener('click', function(){
-      for (var k in P.v) state.pull[k]=P.v[k];
-      syncSliders(); renderFig(); renderRead(); track('lab_preset',{preset:P.id});
-      if (RAW_PRESET_ON){ if (lab.playing) labApply(false); rawPlay(P.id); }
-      else if (lab.playing) labApply(false); else labStart();
+  var pr=$('presets');
+  var PGROUP=[ { label:'地声・ふつう系', ids:['01','02','03','04','05','06','10','11'] }, { label:'裏声系', ids:['07','16','18','15','17'] } ];
+  var ph=document.createElement('option'); ph.value=''; ph.textContent='お手本の声を選ぶ…'; pr.appendChild(ph);
+  PGROUP.forEach(function(G){
+    var og=document.createElement('optgroup'); og.label=G.label;
+    G.ids.forEach(function(pid){
+      PRESETS.forEach(function(P){ if (P.id!==pid) return; var o=document.createElement('option'); o.value=P.id; o.textContent=P.name; og.appendChild(o); });
     });
-    pr.appendChild(b);
+    pr.appendChild(og);
+  });
+  pr.addEventListener('change', function(){
+    var P=null; PRESETS.forEach(function(Q){ if (Q.id===pr.value) P=Q; });
+    if (!P) return;
+    for (var k in P.v) state.pull[k]=P.v[k];
+    syncSliders(); renderFig(); renderRead(); track('lab_preset',{preset:P.id});
+    if (RAW_PRESET_ON){ if (lab.playing) labApply(false); rawPlay(P.id); }
+    else if (lab.playing) labApply(false); else labStart();
   });
   var ex=$('extras'); LV.concat(EXTRAS).forEach(function(E){
     var b=document.createElement('button'); b.type='button'; b.setAttribute('data-x',E.id); b.setAttribute('data-n',E.name); b.setAttribute('aria-pressed','false'); b.textContent='▶ '+E.name;
