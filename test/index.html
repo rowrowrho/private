@@ -199,7 +199,7 @@
       <button type="button" class="play" id="play" aria-pressed="false">▶ 音を鳴らす</button>
     </div>
     <p class="lmsg" id="lmsg" role="status"></p>
-    <p class="linkx" id="linkmsg" role="status">反対にはたらく筋肉どうしは、合計がいつも100％になります（開く＋閉じる／厚く＋薄く／上げる＋下げる）。</p>
+    <p class="linkx" id="linkmsg" role="status"></p>
     <div class="presets"><h3>お手本の組み合わせ（押すと鳴ります）</h3><div class="seg" id="presets"></div></div>
     <div id="sliders"></div>
     <div class="read"><div id="readout"></div></div>
@@ -628,7 +628,7 @@ function coupleFrom(id){
   return moved;
 }
 function linkAll(){ for (var i=0;i<PAIRS.length;i++) coupleFrom(PAIRS[i].a[0]); }   /* ONにした直後に、ぜんぶ合計100%へそろえる */
-var LINK_ON_TXT='反対にはたらく筋肉どうしは、合計がいつも100％になります（開く＋閉じる／厚く＋薄く／上げる＋下げる）。';
+var LINK_ON_TXT='';
 function linkNote(moved){
   var e=$('linkmsg'); if (!e) return;
   if (!LINK_ON){ e.textContent='OFF：1本ずつ自由に動かせます（実際には起こりにくい組み合わせも作れます）。'; return; }
@@ -770,10 +770,27 @@ function axText(mt){
   var la = a.l>.4 ? '締まっている（喉頭が上がる）' : (a.l<-.4 ? '開いている（喉頭が下がる）' : 'ふつう');
   return [['声帯の閉じ具合',cl],['声の厚み',th],['喉の開き具合',la]];
 }
+function mixPct(a){
+  var c=a.c, d=a.d, l=a.l;
+  function pc(x){ return Math.round(clampv(x,0,1)*100); }
+  return [
+    ['息もれ',        c>=.4 ? pc((.7-c)/.3) : pc((c-.1)/.3)],
+    ['ささやき',      pc((.4-c)/.3)],
+    ['押し込み',      pc((c-.7)/.25)],
+    ['地声（厚い）',  pc(-d/.8)],
+    ['裏声（薄い）',  pc(d/.8)],
+    ['喉が上がった（締まる）', pc(l/.8)],
+    ['喉が下がった（開く）',   pc(-l/.8)]
+  ];
+}
 function renderRead(){
-  var mt=morphTarget(), rows=axText(mt), i;
-  var h='<div class="top1">声の高さ：'+(mt.v<.15?'なし（息の音だけ）':noteName(mt.hz)+'（約'+Math.round(mt.hz)+'Hz）')+'</div><dl style="display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:13.5px">';
+  var mt=morphTarget(), rows=axText(mt), mx=mixPct(mt.ax), i;
+  var h='<div class="top1">声の高さ：'+(mt.v<.15?'なし（息の音だけ）':noteName(mt.hz)+'（約'+Math.round(mt.hz)+'Hz）')+'</div>';
+  h+='<dl style="display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:13.5px">';
   for (i=0;i<rows.length;i++) h+='<dt style="font-weight:700; color:var(--text-dim)">'+rows[i][0]+'</dt><dd style="font-weight:900; color:var(--navy)">'+rows[i][1]+'</dd>';
+  h+='</dl><h3 class="sl-h" style="margin:14px 0 6px">声の混ざり具合</h3>';
+  h+='<dl style="display:grid; grid-template-columns:1fr auto; gap:4px 10px; font-size:13.5px">';
+  for (i=0;i<mx.length;i++) h+='<dt style="font-weight:700; color:var(--text-dim)">'+mx[i][0]+'</dt><dd style="font-weight:900; color:var(--navy)">'+mx[i][1]+'%<span class="bar"><i style="width:'+mx[i][1]+'%"></i></span></dd>';
   h+='</dl>';
   $('readout').innerHTML=h;
 }
