@@ -188,8 +188,8 @@
   <section id="infoWrap"></section>
 
   <section class="lab" id="lab" aria-label="筋肉を引っ張ると声がどう変わるかを聞く">
-    <h2>筋肉を引っ張ってみよう<span class="beta">ρ本人の録音</span></h2>
-    <p>フェーダーで筋肉の「引っぱり具合」を動かすと、その組み合わせにいちばん近い声に切り替わります。声はすべてρが録音したもので、高さは同じ（C4＝ド）です。上の図もいっしょに動きます。</p>
+    <h2>筋肉を引っ張ってみよう<span class="beta">ρ本人の声をなめらかに変形</span></h2>
+    <p>フェーダーで筋肉の「引っぱり具合」を動かすと、ρの声（ふつうの声）の音色が、その組み合わせに近い録音の音色へ向かって、なめらかに変わります。声の高さはずっと同じ（C4＝ド）です。上の図もいっしょに動きます。</p>
     <div class="stick">
       <div class="fig" id="fig2"></div>
       <p class="fig-note" id="figNote2"></p>
@@ -202,11 +202,11 @@
     <div id="sliders"></div>
     <div class="read"><div id="readout"></div></div>
     <div class="extra">
-      <h3>ほかの声も聴いてみる（録音そのまま）</h3>
-      <p>フェーダーでは動かせない「音の高さ」や「地声から裏声へのつながり」の録音です。</p>
+      <h3>本物の録音を聴いてみる（聴き比べ用）</h3>
+      <p>フェーダーの音は「ふつうの声」の音色を変えたものです。本物の録音と聴き比べてみてください。最後の5つは、フェーダーでは動かせない「音の高さ」や「地声から裏声へのつながり」の録音です。</p>
       <div class="seg" id="extras"></div>
     </div>
-    <p class="warn-s">※ 音量に注意してください。最初は小さめの音量から聞いてね。音が出ないときは、iPhoneの消音スイッチも確認してください。<br>※ 録音は9種類だけなので、フェーダーの間の値は、近い声どうしをなめらかにつないで鳴らしています。<br>※ 各声に割り当てた筋肉の値は、発声の仕組みから考えた「目安のイメージ」で、実測ではありません。喉の中は見えないので、「この声のとき、この筋肉が主に働いていると考えられる」という位置づけです。実際の発声は、これらの筋肉が同時にからみ合って決まります。</p>
+    <p class="warn-s">※ 音量に注意してください。最初は小さめの音量から聞いてね。音が出ないときは、iPhoneの消音スイッチも確認してください。<br>※ 変わるのは音色（高音の量・厚み・息もれの量など）です。押し込みのザラつきや、裏声ならではの質感までは再現しきれません。<br>※ 各声に割り当てた筋肉の値は、発声の仕組みから考えた「目安のイメージ」で、実測ではありません。喉の中は見えないので、「この声のとき、この筋肉が主に働いていると考えられる」という位置づけです。実際の発声は、これらの筋肉が同時にからみ合って決まります。</p>
   </section>
 
   <section class="cta">
@@ -516,9 +516,11 @@ var EXTRAS = [
   { id:'13', name:'ミックス（スライド）' },
   { id:'14', name:'ミックス（A4キープ）' }
 ];
-var TAU = .04;              /* 小さいほど「いちばん近い声」だけが鳴り、大きいほど混ざる */
-var lab = { playing:false, ctx:null, bufs:null, src:null, gain:null, master:null, loading:false, dirty:false, want:false };
+/* 音色モーフ用のデータ（録音の分析結果）。ふつうの声の録音を、各録音の音色に近づけるEQ値(dB)と息ノイズ量 */
+var MORPH = {"freqs": [260.0, 520.0, 780.0, 1040.0, 1300.0, 1560.0, 1820.0, 2080.0, 2400, 3000, 3800, 4800, 6000, 7500, 9500], "qs": [1.67, 3.33, 5.0, 6.67, 8.33, 10.0, 11.67, 13.33, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0], "res": {"01": {"G": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "n": 0.0, "v": 1.0, "C": -0.0}, "02": {"G": [6.7, -2.4, -12.4, 1.0, -17.0, -11.1, -3.5, 7.3, 1.2, 1.4, -1.2, 5.1, 2.3, 2.0, 7.7], "n": 0.111, "v": 1.0, "C": 1.71}, "03": {"G": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "n": 1.0, "v": 0.0, "C": 0.0}, "04": {"G": [-2.8, -2.6, 2.1, 0.4, -6.8, -2.0, 2.7, 14.7, 3.7, -2.3, 8.4, 15.9, 12.6, 18.0, 18.0], "n": 0.347, "v": 1.0, "C": 0.08}, "05": {"G": [8.5, -1.4, -9.2, -12.5, -9.2, -9.5, -6.9, -8.1, -4.6, -3.6, -6.8, -12.7, -7.7, -5.3, 4.4], "n": 0.031, "v": 1.0, "C": 0.55}, "06": {"G": [-8.5, -0.2, -18.7, 5.3, -4.7, -7.5, -4.2, 17.8, 4.6, 3.0, 3.0, -1.1, 5.6, 7.5, 7.9], "n": 0.0, "v": 1.0, "C": 2.97}, "07": {"G": [12.4, -8.2, -1.5, -12.0, -25.5, -20.3, -10.6, -3.4, 0.9, -3.4, -18.0, -8.7, -5.5, -3.1, 9.1], "n": 0.034, "v": 1.0, "C": 0.97}, "10": {"G": [-3.7, 0.2, -6.6, -6.4, 8.2, 9.9, 4.5, 16.4, 6.0, -13.0, -1.0, 13.4, 7.0, 10.8, 18.0], "n": 0.162, "v": 1.0, "C": 0.89}, "11": {"G": [-10.5, 0.9, -22.6, -17.5, -10.4, -8.2, -9.8, 10.2, 1.9, -4.8, -2.5, -5.5, -6.4, 5.1, 3.5], "n": 0.018, "v": 1.0, "C": 4.7}}};
+var lab = { playing:false, ctx:null, bufs:null, loading:false, dirty:false, want:false, g:null };
 
+/* 近い録音ほど大きい重み（なめらかに変わる。録音の位置ではその録音の音色になる） */
 function lvWeights(){
   var d2=[], mn=1e9, i, k;
   for (i=0;i<LV.length;i++){
@@ -526,18 +528,30 @@ function lvWeights(){
     d2.push(s); if (s<mn) mn=s;
   }
   var w=[], sum=0;
-  for (i=0;i<LV.length;i++){ var e=Math.exp(-(d2[i]-mn)/TAU); if (e<.02) e=0; w.push(e); sum+=e; }
+  for (i=0;i<LV.length;i++){ var e=1/Math.pow(d2[i]+.003,1.5); w.push(e); sum+=e; }
   for (i=0;i<LV.length;i++) w[i]=w[i]/sum;
   return { w:w, dmin:Math.sqrt(mn) };
+}
+function morphTarget(){
+  var r=lvWeights(), G=[], k, i;
+  for (k=0;k<MORPH.freqs.length;k++) G.push(0);
+  var n=0, v=0, C=0;
+  for (i=0;i<LV.length;i++){
+    var P=MORPH.res[LV[i].id], w=r.w[i];
+    for (k=0;k<G.length;k++) G[k]+=w*P.G[k];
+    n+=w*P.n; v+=w*P.v; C+=w*P.C;
+  }
+  return { G:G, n:n, v:v, C:C, r:r };
 }
 function lmsg(t){ var e=$('lmsg'); if (e) e.textContent=t||''; }
 
 function labApply(instant){
-  if (!lab.playing || !lab.gain) return;
-  var r=lvWeights(), t=lab.ctx.currentTime, tc=instant?0.005:0.05;
-  for (var i=0;i<LV.length;i++){
-    lab.gain[LV[i].id].gain.setTargetAtTime(Math.sqrt(r.w[i]), t, tc);   /* 2乗して足すと1になる＝音量が一定 */
-  }
+  if (!lab.playing || !lab.g) return;
+  var m=morphTarget(), t=lab.ctx.currentTime, tc=instant?0.005:0.05, k;
+  for (k=0;k<lab.g.f.length;k++) lab.g.f[k].gain.setTargetAtTime(m.G[k], t, tc);
+  lab.g.v.gain.setTargetAtTime(m.v, t, tc);
+  lab.g.n.gain.setTargetAtTime(m.n, t, tc);
+  lab.g.c.gain.setTargetAtTime(Math.pow(10, m.C/20), t, tc);
 }
 function fetchAudio(name, i){
   return fetch(AUDIO_BASES[i]+name+'?v='+LAB_V).then(function(r){
@@ -550,17 +564,20 @@ function fetchAudio(name, i){
 function lvLoadAll(done, fail){
   if (lab.bufs){ done(); return; }
   if (lab.loading) return;
-  lab.loading=true; var bufs={}, n=0, bad=false;
-  LV.forEach(function(L){
-    fetchAudio('loop'+L.id+'.wav', audioIdx).then(function(ab){
+  lab.loading=true; var bufs={}, n=0, bad=false, ids=['01','03'];
+  ids.forEach(function(id){
+    fetchAudio('loop'+id+'.wav', audioIdx).then(function(ab){
       lab.ctx.decodeAudioData(ab, function(buf){
-        bufs[L.id]=buf; n++; if (n===LV.length && !bad){ lab.bufs=bufs; lab.loading=false; done(); }
+        bufs[id]=buf; n++; if (n===ids.length && !bad){ lab.bufs=bufs; lab.loading=false; done(); }
       }, function(){ if (!bad){ bad=true; lab.loading=false; fail(); } });
     }).catch(function(){ if (!bad){ bad=true; lab.loading=false; fail(); } });
   });
 }
 function setPlayBtn(on){
   var b=$('play'); b.setAttribute('aria-pressed', on?'true':'false'); b.textContent = on ? '■ 音を止める' : '▶ 音を鳴らす';
+}
+function loopSrc(c, buf){
+  var s=c.createBufferSource(); s.buffer=buf; s.loop=true; s.loopStart=0; s.loopEnd=buf.duration; return s;
 }
 function labStart(){
   extraStop();
@@ -575,16 +592,22 @@ function labStart(){
   lvLoadAll(function(){
     lmsg('');
     if (!lab.want) { setPlayBtn(false); return; }
-    var c=lab.ctx, N={}, G={};
-    lab.master=c.createGain(); lab.master.gain.value=0; lab.master.connect(c.destination);
-    LV.forEach(function(L){
-      var s=c.createBufferSource(); s.buffer=lab.bufs[L.id]; s.loop=true; s.loopStart=0; s.loopEnd=lab.bufs[L.id].duration;
-      var g=c.createGain(); g.gain.value=0; s.connect(g); g.connect(lab.master); s.start(0);
-      N[L.id]=s; G[L.id]=g;
-    });
-    lab.src=N; lab.gain=G; lab.playing=true;
+    var c=lab.ctx, G={ f:[] };
+    G.sv=loopSrc(c, lab.bufs['01']); G.sn=loopSrc(c, lab.bufs['03']);
+    G.v=c.createGain(); G.v.gain.value=0; G.n=c.createGain(); G.n.gain.value=0;
+    G.c=c.createGain(); G.c.gain.value=1; G.m=c.createGain(); G.m.gain.value=0;
+    G.sv.connect(G.v);
+    var prev=G.v;
+    for (var k=0;k<MORPH.freqs.length;k++){
+      var f=c.createBiquadFilter(); f.type='peaking'; f.frequency.value=MORPH.freqs[k]; f.Q.value=MORPH.qs[k]; f.gain.value=0;
+      prev.connect(f); prev=f; G.f.push(f);
+    }
+    prev.connect(G.c); G.sn.connect(G.n); G.n.connect(G.c);
+    G.c.connect(G.m); G.m.connect(c.destination);
+    lab.g=G; lab.playing=true;
     labApply(true);
-    lab.master.gain.setTargetAtTime(.85, c.currentTime, .05);
+    G.sv.start(0); G.sn.start(0);
+    G.m.gain.setTargetAtTime(.85, c.currentTime, .05);
     setPlayBtn(true); track('lab_play');
   }, function(){
     lab.want=false; setPlayBtn(false); lmsg('音声を読み込めませんでした。少し待ってからもう一度タップしてください。');
@@ -592,12 +615,12 @@ function labStart(){
 }
 function labStop(){
   lab.want=false;
-  if (lab.playing && lab.master){
-    var N=lab.src, c=lab.ctx, m=lab.master;
-    m.gain.setTargetAtTime(0, c.currentTime, .04);
-    setTimeout(function(){ for (var k in N){ try{ N[k].stop(); }catch(e){} } try{ m.disconnect(); }catch(e){} }, 240);
+  if (lab.playing && lab.g){
+    var G=lab.g, c=lab.ctx;
+    G.m.gain.setTargetAtTime(0, c.currentTime, .04);
+    setTimeout(function(){ try{ G.sv.stop(); G.sn.stop(); }catch(e){} try{ G.m.disconnect(); }catch(e){} }, 240);
   }
-  lab.src=null; lab.gain=null; lab.master=null; lab.playing=false;
+  lab.g=null; lab.playing=false;
   setPlayBtn(false);
 }
 function labUpdate(){
@@ -605,14 +628,13 @@ function labUpdate(){
   requestAnimationFrame(function(){ lab.dirty=false; labApply(false); renderRead(); });
 }
 
-/* 「ほかの声」は録音をそのまま鳴らす */
+/* 本物の録音（そのまま）。聴き比べ用 */
 var xAudio=new Audio(); xAudio.preload='none'; var xCur=null, xTry=0;
 function extraRefresh(){
   var bs=document.querySelectorAll('#extras button');
   for (var i=0;i<bs.length;i++){
-    var id=bs[i].getAttribute('data-x'), on=(xCur===id), nm='';
-    for (var j=0;j<EXTRAS.length;j++) if (EXTRAS[j].id===id) nm=EXTRAS[j].name;
-    bs[i].setAttribute('aria-pressed', on?'true':'false'); bs[i].textContent=(on?'■ ':'▶ ')+nm;
+    var id=bs[i].getAttribute('data-x'), on=(xCur===id);
+    bs[i].setAttribute('aria-pressed', on?'true':'false'); bs[i].textContent=(on?'■ ':'▶ ')+bs[i].getAttribute('data-n');
   }
 }
 function extraStop(){ try{ xAudio.pause(); xAudio.currentTime=0; }catch(e){} xCur=null; extraRefresh(); }
@@ -633,13 +655,13 @@ function renderRead(){
   var r=lvWeights(), idx=[], i;
   for (i=0;i<LV.length;i++) idx.push(i);
   idx.sort(function(a,b){ return r.w[b]-r.w[a]; });
-  var h='<div class="top1">いま鳴っている声：'+LV[idx[0]].name+'</div><dl style="display:grid; grid-template-columns:1fr auto; gap:4px 10px; font-size:13.5px">';
+  var h='<div class="top1">いまの音色に近い録音：'+LV[idx[0]].name+'</div><dl style="display:grid; grid-template-columns:1fr auto; gap:4px 10px; font-size:13.5px">';
   for (i=0;i<idx.length;i++){
     var p=Math.round(r.w[idx[i]]*100); if (p<5) break;
     h+='<dt style="font-weight:700; color:var(--text-dim)">'+LV[idx[i]].name+'</dt><dd style="font-weight:900; color:var(--navy)">'+p+'%<span class="bar"><i style="width:'+p+'%"></i></span></dd>';
   }
   h+='</dl>';
-  if (r.dmin>.6) h+='<div class="far">録音のどれからも離れた組み合わせです。いちばん近い声で代わりに鳴らしています。</div>';
+  if (r.dmin>.6) h+='<div class="far">どの録音からも離れた組み合わせです。いちばん近い録音の音色を、できるだけ延ばして鳴らしています。</div>';
   $('readout').innerHTML=h;
 }
 function renderLab(){
@@ -676,8 +698,8 @@ function syncSliders(){ LAB.forEach(function(L){ var i=$('si_'+L.id); if (i){ i.
     });
     pr.appendChild(b);
   });
-  var ex=$('extras'); EXTRAS.forEach(function(E){
-    var b=document.createElement('button'); b.type='button'; b.setAttribute('data-x',E.id); b.setAttribute('aria-pressed','false'); b.textContent='▶ '+E.name;
+  var ex=$('extras'); LV.concat(EXTRAS).forEach(function(E){
+    var b=document.createElement('button'); b.type='button'; b.setAttribute('data-x',E.id); b.setAttribute('data-n',E.name); b.setAttribute('aria-pressed','false'); b.textContent='▶ '+E.name;
     b.addEventListener('click', function(){ extraPlay(E.id); });
     ex.appendChild(b);
   });
