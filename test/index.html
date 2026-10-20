@@ -200,7 +200,7 @@
     </div>
     <p class="lmsg" id="lmsg" role="status"></p>
     <p class="linkx" id="linkmsg" role="status"></p>
-    <div class="presets"><h3>お手本の組み合わせ（押すと鳴ります）</h3><div class="seg" id="presets"></div></div>
+    <div class="presets"><h3>お手本の声（押すと、録音そのままが鳴ります）</h3><div class="seg" id="presets"></div></div>
     <div id="sliders"></div>
     <div class="read"><div id="readout"></div></div>
     <div class="extra">
@@ -488,7 +488,7 @@ function select(id, fromChip){
 /* ===== 録音ラボ（ρの録音をフェーダーで切り替え・なめらかにつなぐ） ===== */
 var LAB_ON = true;
 var SHOW_RAW = false;       /* true にすると「本物の録音を聴く」コーナーを表示（音声14本が必要） */          /* false にするとこのコーナーを丸ごと隠す（1行で戻せる） */
-var LAB_V = 1;              /* 音声ファイルを差し替えたら +1 */
+var LAB_V = 2;              /* 音声ファイルを差し替えたら +1 */
 var AUDIO_BASES = ['atlas_audio/', '../atlas_audio/', ''];   /* 音声フォルダの場所の候補（上から順に探す） */
 var audioIdx = 0;           /* 見つかった場所の番号 */
 var LAB = [
@@ -512,6 +512,14 @@ var LV = [
   { id:'10', name:'喉が上がった声', v:{ pca:.3,  lca:.7,  ia:.7,  ta:.5, ct:.5, o_up:.9, o_down:.1 } },
   { id:'11', name:'喉が下がった声', v:{ pca:.3,  lca:.7,  ia:.7,  ta:.5, ct:.5, o_up:.1, o_down:.9 } }
 ];
+/* お手本の声：押すと、雑味を取り除いた「本物の録音」がそのまま鳴る（clean○○.wav）。スライダーを動かすと、なめらかな変形に切り替わる */
+var RAW_PRESET_ON = true;    /* false にすると、お手本ボタンも今までどおり「変形した音」で鳴る（1行で戻せる） */
+var PRESETS = LV.concat([
+  { id:'16', name:'息もれ裏声',   v:{ pca:.6,  lca:.4,  ia:.4,  ta:.1, ct:.9, o_up:.5, o_down:.5 } },
+  { id:'18', name:'押し込み裏声', v:{ pca:.05, lca:.95, ia:.95, ta:.1, ct:.9, o_up:.5, o_down:.5 } },
+  { id:'15', name:'喉下げ裏声',   v:{ pca:.3,  lca:.7,  ia:.7,  ta:.1, ct:.9, o_up:.1, o_down:.9 } },
+  { id:'17', name:'喉上げ裏声',   v:{ pca:.3,  lca:.7,  ia:.7,  ta:.1, ct:.9, o_up:.9, o_down:.1 } }
+]);
 var EXTRAS = [
   { id:'08', name:'低め（ソ#3）' },
   { id:'09', name:'高め（ミ4）' },
@@ -769,6 +777,53 @@ function labStop(){
   lab.g=null; lab.playing=false;
   setPlayBtn(false);
 }
+/* ---- お手本の声：録音そのまま（雑味除去済みのループ）を鳴らす ---- */
+var rawS=null, rawG=null, rawId=null, rawBufs={};
+function ensureCtx(){
+  if (!lab.ctx){
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if (!AC){ lmsg('このブラウザでは音が出せません。'); return false; }
+    lab.ctx=new AC();
+  }
+  if (lab.ctx.state==='suspended') lab.ctx.resume();
+  return true;
+}
+function rawLoad(id, ok, ng){
+  if (rawBufs[id]){ ok(rawBufs[id]); return; }
+  fetchAudio('clean'+id+'.wav', audioIdx).then(function(ab){
+    lab.ctx.decodeAudioData(ab, function(buf){ rawBufs[id]=buf; ok(buf); }, function(){ ng(); });
+  }).catch(function(){ ng(); });
+}
+function rawFade(){
+  if (rawS){
+    var s=rawS, g=rawG, c=lab.ctx;
+    try{ g.gain.setTargetAtTime(0, c.currentTime, .03); }catch(e){}
+    setTimeout(function(){ try{ s.stop(); }catch(e){} try{ g.disconnect(); }catch(e){} }, 220);
+  }
+  rawS=null; rawG=null;
+}
+function rawPlay(id){
+  extraStop();
+  if (!ensureCtx()) return;
+  rawFade(); rawId=id;
+  if (lab.playing && lab.g) lab.g.m.gain.setTargetAtTime(0, lab.ctx.currentTime, .04);   /* 変形のほうは消音 */
+  if (!rawBufs[id]){ lmsg('音を読み込み中…'); }
+  rawLoad(id, function(buf){
+    if (rawId!==id) return;
+    var c=lab.ctx, s=loopSrc(c, buf), g=c.createGain();
+    g.gain.value=0; s.connect(g); g.connect(c.destination); s.start(0);
+    g.gain.setTargetAtTime(.85, c.currentTime, .03);
+    rawS=s; rawG=g; setPlayBtn(true);
+    lmsg('録音そのまま（雑味を取り除いたもの）を再生中です。スライダーを動かすと、なめらかな変形に切り替わります。');
+  }, function(){
+    rawId=null; setPlayBtn(false); lmsg('音声を読み込めませんでした。少し待ってからもう一度タップしてください。');
+  });
+}
+function rawToMorph(){
+  rawFade(); rawId=null; lmsg('');
+  if (lab.playing && lab.g){ lab.g.m.gain.setTargetAtTime(.85, lab.ctx.currentTime, .05); }
+  else if (!lab.want){ labStart(); }
+}
 function labUpdate(){
   if (lab.dirty) return; lab.dirty=true;
   requestAnimationFrame(function(){ lab.dirty=false; labApply(false); renderRead(); });
@@ -786,6 +841,7 @@ function extraRefresh(){
 function extraStop(){ try{ xAudio.pause(); xAudio.currentTime=0; }catch(e){} xCur=null; extraRefresh(); }
 function extraPlay(id){
   if (xCur===id){ extraStop(); return; }
+  rawFade(); rawId=null;
   if (lab.playing || lab.want) labStop();
   lmsg(''); try{ xAudio.pause(); }catch(e){}
   xAudio.src=AUDIO_BASES[audioIdx]+'voice'+id+'.mp3?v='+LAB_V; xCur=id; xTry=0; extraRefresh(); track('lab_extra',{voice:id});
@@ -842,6 +898,7 @@ function renderLab(){
     function sync(){ $('sv_'+L.id).textContent=Math.round(state.pull[L.id]*100)+'%'; }
     sync();
     inp.addEventListener('input', function(){
+      if (rawId) rawToMorph();
       var snap=JSON.parse(JSON.stringify(state.pull));
       state.pull[L.id]=inp.value/100;
       var mv = LINK_ON ? coupleFrom(L.id, snap) : [];
@@ -860,12 +917,13 @@ function syncSliders(){ LAB.forEach(function(L){ var i=$('si_'+L.id); if (i){ i.
 (function initLab(){
   if (!LAB_ON){ var sec=$('lab'); if (sec) sec.hidden=true; return; }
   if (!SHOW_RAW){ var xe=document.querySelector('.extra'); if (xe) xe.hidden=true; }
-  var pr=$('presets'); LV.forEach(function(P){
+  var pr=$('presets'); PRESETS.forEach(function(P){
     var b=document.createElement('button'); b.type='button'; b.textContent=P.name;
     b.addEventListener('click', function(){
       for (var k in P.v) state.pull[k]=P.v[k];
       syncSliders(); renderFig(); renderRead(); track('lab_preset',{preset:P.id});
-      if (lab.playing) labApply(false); else labStart();
+      if (RAW_PRESET_ON){ if (lab.playing) labApply(false); rawPlay(P.id); }
+      else if (lab.playing) labApply(false); else labStart();
     });
     pr.appendChild(b);
   });
@@ -876,9 +934,10 @@ function syncSliders(){ LAB.forEach(function(L){ var i=$('si_'+L.id); if (i){ i.
   });
   linkNote(null);
   $('play').addEventListener('click', function(){
+    if (rawId){ rawFade(); rawId=null; lmsg(''); if (lab.playing || lab.want) labStop(); setPlayBtn(false); return; }
     if (lab.playing || lab.want) labStop(); else labStart();
   });
-  function stopAll(){ if (lab.playing || lab.want) labStop(); if (xCur) extraStop(); }
+  function stopAll(){ rawFade(); rawId=null; if (lab.playing || lab.want) labStop(); if (xCur) extraStop(); }
   document.addEventListener('visibilitychange', function(){ if (document.hidden) stopAll(); });
   window.addEventListener('pagehide', stopAll);
 })();
