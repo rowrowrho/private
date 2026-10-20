@@ -208,7 +208,7 @@
       <p>フェーダーの音は「ふつうの声」の音色を変えたものです。本物の録音と聴き比べてみてください。最後の5つは、フェーダーでは動かせない「音の高さ」や「地声から裏声へのつながり」の録音です。</p>
       <div class="seg" id="extras"></div>
     </div>
-    <p class="warn-s">※ 音量に注意してください。最初は小さめの音量から聞いてね。音が出ないときは、iPhoneの消音スイッチも確認してください。<br>※ 声は「ふつうの声」の録音1本を元に、筋肉の値に合わせて声の高さと音色を変えています（録音どうしを重ねてはいません）。輪状甲状筋を引くほど高く、甲状披裂筋を引くほど低くなります。<br>※ 音色の見本は、ρ本人の録音を分析したものです（裏声はC5の録音）。押し込みのザラつきや、裏声ならではの質感までは再現しきれません。<br>※ 各声に割り当てた筋肉の値は、発声の仕組みから考えた「目安のイメージ」で、実測ではありません。喉の中は見えないので、「この声のとき、この筋肉が主に働いていると考えられる」という位置づけです。実際の発声は、これらの筋肉が同時にからみ合って決まります。</p>
+    <p class="warn-s">※ 音量に注意してください。最初は小さめの音量から聞いてね。音が出ないときは、iPhoneの消音スイッチも確認してください。<br>※ 声の高さと音色は、筋肉の値に合わせて変わります。輪状甲状筋を引くほど高く、甲状披裂筋を引くほど低くなります。<br>※ 土台の声は2つ。ふつうの声の録音と、C5で録音した裏声の録音です。地声から裏声に変わるあたり（声が裏返る換声点のイメージ）で、同じ高さにそろえて短くなめらかに切り替えます。押し込みのザラつきなどの質感までは再現しきれません。<br>※ 各声に割り当てた筋肉の値は、発声の仕組みから考えた「目安のイメージ」で、実測ではありません。喉の中は見えないので、「この声のとき、この筋肉が主に働いていると考えられる」という位置づけです。実際の発声は、これらの筋肉が同時にからみ合って決まります。</p>
   </section>
 
   <section class="cta">
@@ -541,6 +541,7 @@ function lvWeights(){
 var PITCH_UP = 15;          /* 輪状甲状筋が優勢（裏声側）：差が1.0あたり半音15ぶん高くなる（裏声のC5付近まで） */
 var PITCH_DN = 8;           /* 甲状披裂筋が優勢（地声側）：差が1.0あたり半音8ぶん低くなる */
 var BASE_HZ = 261.6;        /* ふつう（どちらも50%）のときの声の高さ＝C4 */
+var BREAK_LO = .30, BREAK_HI = .50;   /* 差（輪状甲状筋−甲状披裂筋）がこの間で、土台の声がふつう→裏声の録音へ切り替わる（声の高さはそろえてつなぐ） */
 var NHARM = 4;              /* 低い倍音を個別に調整する数 */
 var BROAD = [500,700,1000,1400,1900,2400,3000,3800,4800,6000,7500,9500];   /* 広い帯域の調整位置(Hz) */
 var BROAD_Q = 2.5;
@@ -560,6 +561,28 @@ function envAt(id,f){
   var i=0; while (a[i+1]<f) i++;
   return d[i]+(d[i+1]-d[i])*(f-a[i])/(a[i+1]-a[i]);
 }
+/* ある録音（srcId）を高さf0tで鳴らすときに、狙いの音色Eに近づけるためのフィルタ設定を求める */
+function solveEq(E, srcId, f0t){
+  var src=ENV[srcId], fs0=src.f0, d=src.d, rate=f0t/fs0, k, k2, h, gb=[];
+  var PT=[], DT=[], FQ=[], QQ=[];                       /* 調整する位置(Hz)、そこで欲しい変化(dB)、フィルタの中心と鋭さ */
+  for (h=1;h<=NHARM;h++){ var F=h*f0t; PT.push(F); FQ.push(F); QQ.push(h/0.6); }
+  for (k=0;k<BROAD.length;k++){ PT.push(BROAD[k]); FQ.push(BROAD[k]); QQ.push(BROAD_Q); }
+  for (k=0;k<PT.length;k++) DT.push(clampv(E(PT[k])-envAt(srcId,PT[k]/rate),-30,30));
+  var g=DT.slice();
+  for (var it=0; it<5; it++){                           /* フィルタどうしの重なりぶんを引いて、狙いの変化に近づける */
+    for (k=0;k<PT.length;k++){
+      var R=0; for (k2=0;k2<PT.length;k2++) R+=peakDb(PT[k], FQ[k2], QQ[k2], g[k2]);
+      g[k]=clampv(g[k]+0.8*(DT[k]-R),-30,30);
+    }
+  }
+  var P0=0, P1=0;
+  for (h=1;h<=d.length;h++){
+    var Fh=h*fs0*rate; if (Fh>15000) break;
+    var gg=clampv(E(Fh)-d[h-1],-30,30), p=Math.pow(10,d[h-1]/10);
+    P0+=p; P1+=p*Math.pow(10,gg/10);
+  }
+  return { rate:rate, HF:FQ.slice(0,NHARM), HG:g.slice(0,NHARM), gb:g.slice(NHARM), C:clampv(-10*Math.log10(P1/P0+1e-9),-12,12) };
+}
 /* 筋肉の値 → 声の高さ・音色（各帯域のEQ）・息の量・音量 を計算する */
 function morphTarget(){
   var r=lvWeights(), i, k, h, w={}, wv=0, v=0, n=0;
@@ -570,27 +593,10 @@ function morphTarget(){
   var norm = wv>1e-6 ? 1/wv : 0;
   function E(f){ var s=0; for (var j=0;j<VOICED.length;j++){ var id2=VOICED[j]; s+=w[id2]*envAt(id2,f); } return s*norm; }
   var dd=state.pull.ct-state.pull.ta, st=(dd>0?PITCH_UP:PITCH_DN)*dd, rate=Math.pow(2,st/12);
-  var f0b=ENV['01'].f0, d01=ENV['01'].d, gb=[], k2;
-  var PT=[], DT=[], FQ=[], QQ=[];                       /* 調整する位置(Hz)、そこで欲しい変化(dB)、フィルタの中心と鋭さ */
-  for (h=1;h<=NHARM;h++){ var F=h*f0b*rate; PT.push(F); FQ.push(F); QQ.push(h/0.6); }
-  for (k=0;k<BROAD.length;k++){ PT.push(BROAD[k]); FQ.push(BROAD[k]); QQ.push(BROAD_Q); }
-  for (k=0;k<PT.length;k++) DT.push(clampv(E(PT[k])-envAt('01',PT[k]/rate),-30,30));
-  var g=DT.slice();
-  for (var it=0; it<5; it++){                           /* フィルタどうしの重なりぶんを引いて、狙いの変化に近づける */
-    for (k=0;k<PT.length;k++){
-      var R=0; for (k2=0;k2<PT.length;k2++) R+=peakDb(PT[k], FQ[k2], QQ[k2], g[k2]);
-      g[k]=clampv(g[k]+0.8*(DT[k]-R),-30,30);
-    }
-  }
-  var HF=FQ.slice(0,NHARM), HG=g.slice(0,NHARM); gb=g.slice(NHARM);
-  var P0=0, P1=0;
-  for (h=1;h<=d01.length;h++){
-    var Fh=h*f0b*rate; if (Fh>15000) break;
-    var gg=clampv(E(Fh)-d01[h-1],-30,30), p=Math.pow(10,d01[h-1]/10);
-    P0+=p; P1+=p*Math.pow(10,gg/10);
-  }
-  var C=clampv(-10*Math.log10(P1/P0+1e-9),-12,12);
-  return { rate:rate, st:st, hz:BASE_HZ*rate, HF:HF, HG:HG, gb:gb, v:v, n:n, C:C, r:r };
+  var f0t=ENV['01'].f0*rate;
+  var chest=solveEq(E,'01',f0t), fal=solveEq(E,'07',f0t);
+  var tt=clampv((dd-BREAK_LO)/(BREAK_HI-BREAK_LO),0,1), beta=tt*tt*(3-2*tt);   /* 0＝ふつうの声が土台、1＝C5の裏声の録音が土台 */
+  return { rate:rate, st:st, hz:BASE_HZ*rate, chest:chest, fal:fal, beta:beta, v:v, n:n, r:r };
 }
 /* 反対にはたらく筋肉どうし：合計がいつも100%になるように連動する
    （舌骨・甲状軟骨・輪状軟骨・披裂軟骨の位置関係が、どちらかが動くともう片方も決まるため） */
@@ -622,14 +628,21 @@ function linkNote(moved){
 }
 function lmsg(t){ var e=$('lmsg'); if (e) e.textContent=t||''; }
 
+function applyChain(F, ch, t, tc){
+  var k;
+  for (k=0;k<NHARM;k++){ F[k].frequency.setTargetAtTime(ch.HF[k], t, tc); F[k].gain.setTargetAtTime(ch.HG[k], t, tc); }
+  for (k=0;k<BROAD.length;k++) F[NHARM+k].gain.setTargetAtTime(ch.gb[k], t, tc);
+}
 function applyMorph(G, c, m, instant){
-  var t=c.currentTime, tc=instant?0.005:0.05, k;
-  G.sv.playbackRate.setTargetAtTime(m.rate, t, tc);
-  for (k=0;k<NHARM;k++){ G.f[k].frequency.setTargetAtTime(m.HF[k], t, tc); G.f[k].gain.setTargetAtTime(m.HG[k], t, tc); }
-  for (k=0;k<BROAD.length;k++) G.f[NHARM+k].gain.setTargetAtTime(m.gb[k], t, tc);
-  G.v.gain.setTargetAtTime(m.v, t, tc);
+  var t=c.currentTime, tc=instant?0.005:0.05;
+  G.sv.playbackRate.setTargetAtTime(m.chest.rate, t, tc);
+  G.sf.playbackRate.setTargetAtTime(m.fal.rate, t, tc);
+  applyChain(G.f, m.chest, t, tc); applyChain(G.f2, m.fal, t, tc);
+  G.v.gain.setTargetAtTime(m.v*Math.sqrt(1-m.beta), t, tc);
+  G.v2.gain.setTargetAtTime(m.v*Math.sqrt(m.beta), t, tc);
   G.n.gain.setTargetAtTime(m.n, t, tc);
-  G.c.gain.setTargetAtTime(Math.pow(10, m.C/20), t, tc);
+  G.c.gain.setTargetAtTime(Math.pow(10, m.chest.C/20), t, tc);
+  G.c2.gain.setTargetAtTime(Math.pow(10, m.fal.C/20), t, tc);
 }
 function labApply(instant){
   if (!lab.playing || !lab.g) return;
@@ -646,7 +659,7 @@ function fetchAudio(name, i){
 function lvLoadAll(done, fail){
   if (lab.bufs){ done(); return; }
   if (lab.loading) return;
-  lab.loading=true; var bufs={}, n=0, bad=false, ids=['01','03'];
+  lab.loading=true; var bufs={}, n=0, bad=false, ids=['01','03','07c5'];
   ids.forEach(function(id){
     fetchAudio('loop'+id+'.wav', audioIdx).then(function(ab){
       lab.ctx.decodeAudioData(ab, function(buf){
@@ -661,16 +674,21 @@ function setPlayBtn(on){
 function loopSrc(c, buf){
   var s=c.createBufferSource(); s.buffer=buf; s.loop=true; s.loopStart=0; s.loopEnd=buf.duration; return s;
 }
+function buildChain(c, src, gain, comp, F, f0b){
+  var k, f, prev=gain;
+  src.connect(gain);
+  for (k=0;k<NHARM;k++){ f=c.createBiquadFilter(); f.type='peaking'; f.frequency.value=f0b*(k+1); f.Q.value=(k+1)/0.6; f.gain.value=0; prev.connect(f); prev=f; F.push(f); }
+  for (k=0;k<BROAD.length;k++){ f=c.createBiquadFilter(); f.type='peaking'; f.frequency.value=BROAD[k]; f.Q.value=BROAD_Q; f.gain.value=0; prev.connect(f); prev=f; F.push(f); }
+  prev.connect(comp);
+}
 function buildGraph(c, bufs){
-  var G={ f:[] }, k, f;
-  G.sv=loopSrc(c, bufs['01']); G.sn=loopSrc(c, bufs['03']);
-  G.v=c.createGain(); G.v.gain.value=0; G.n=c.createGain(); G.n.gain.value=0;
-  G.c=c.createGain(); G.c.gain.value=1; G.m=c.createGain(); G.m.gain.value=0;
-  G.sv.connect(G.v);
-  var prev=G.v, f0b=ENV['01'].f0;
-  for (k=0;k<NHARM;k++){ f=c.createBiquadFilter(); f.type='peaking'; f.frequency.value=f0b*(k+1); f.Q.value=(k+1)/0.6; f.gain.value=0; prev.connect(f); prev=f; G.f.push(f); }
-  for (k=0;k<BROAD.length;k++){ f=c.createBiquadFilter(); f.type='peaking'; f.frequency.value=BROAD[k]; f.Q.value=BROAD_Q; f.gain.value=0; prev.connect(f); prev=f; G.f.push(f); }
-  prev.connect(G.c); G.sn.connect(G.n); G.n.connect(G.c); G.c.connect(G.m); G.m.connect(c.destination);
+  var G={ f:[], f2:[] };
+  G.sv=loopSrc(c, bufs['01']); G.sf=loopSrc(c, bufs['07c5']); G.sn=loopSrc(c, bufs['03']);
+  G.v=c.createGain(); G.v.gain.value=0; G.v2=c.createGain(); G.v2.gain.value=0; G.n=c.createGain(); G.n.gain.value=0;
+  G.c=c.createGain(); G.c.gain.value=1; G.c2=c.createGain(); G.c2.gain.value=1; G.m=c.createGain(); G.m.gain.value=0;
+  buildChain(c, G.sv, G.v, G.c, G.f, ENV['01'].f0);       /* ふつうの声の土台 */
+  buildChain(c, G.sf, G.v2, G.c2, G.f2, ENV['07'].f0);    /* C5の裏声の録音の土台 */
+  G.sn.connect(G.n); G.n.connect(G.m); G.c.connect(G.m); G.c2.connect(G.m); G.m.connect(c.destination);
   return G;
 }
 function labStart(){
@@ -689,7 +707,7 @@ function labStart(){
     var c=lab.ctx, G=buildGraph(c, lab.bufs);
     lab.g=G; lab.playing=true;
     labApply(true);
-    G.sv.start(0); G.sn.start(0);
+    G.sv.start(0); G.sn.start(0); G.sf.start(0);
     G.m.gain.setTargetAtTime(.85, c.currentTime, .05);
     setPlayBtn(true); track('lab_play');
   }, function(){
@@ -701,7 +719,7 @@ function labStop(){
   if (lab.playing && lab.g){
     var G=lab.g, c=lab.ctx;
     G.m.gain.setTargetAtTime(0, c.currentTime, .04);
-    setTimeout(function(){ try{ G.sv.stop(); G.sn.stop(); }catch(e){} try{ G.m.disconnect(); }catch(e){} }, 240);
+    setTimeout(function(){ try{ G.sv.stop(); G.sn.stop(); G.sf.stop(); }catch(e){} try{ G.m.disconnect(); }catch(e){} }, 240);
   }
   lab.g=null; lab.playing=false;
   setPlayBtn(false);
