@@ -148,6 +148,10 @@
   .sl-end{font-size:10.5px; color:var(--text-dim); white-space:nowrap; min-width:3.6em;}
   .sl-end:last-child{text-align:right;}
   .sl .sl-row input[type=range]{flex:1; width:auto; min-width:0; margin:0; height:28px;}
+  .notes{margin-top:14px; border:1.5px solid var(--line); border-radius:14px; padding:10px 12px; background:#fff;}
+  .notes summary{font-weight:900; color:var(--blue); font-size:13px; cursor:pointer;}
+  .notes p{font-size:12.5px; color:var(--text-dim); line-height:1.75; margin-top:8px;}
+  .notes a{color:var(--blue);}
   .linkx{margin-top:6px; font-size:12.5px; color:var(--text-dim); line-height:1.7; min-height:1.7em;}
   .lmsg{margin-top:8px; font-size:12.5px; color:#7A520A; min-height:1em;}
   .read{margin-top:16px; padding:14px; border-radius:14px; background:var(--sky);}
@@ -210,12 +214,26 @@
     <div class="presets"><h3>お手本の声（選ぶと、録音そのままが鳴ります）</h3><select id="presets" aria-label="お手本の声を選ぶ"></select></div>
     <div id="sliders"></div>
     <div class="read"><div id="readout"></div></div>
+    <details class="notes">
+      <summary>この図鑑の読み方（連動の考え方・注意・出典）</summary>
+      <p><b>連動のしかた</b><br>合計が100%になるのは、軟骨や舌骨の位置関係で決まるペアだけです。（後輪状披裂筋⇔外側輪状披裂筋・披裂筋、舌骨上筋群⇔舌骨下筋群）</p>
+      <p><b>甲状披裂筋と輪状甲状筋</b><br>実際の発声では、この2つは同時に働く（共収縮）のが普通です。この図鑑では、わかりやすさのために「厚み⇔のび」の1本の軸にまとめています（簡略化）。「地声＝甲状披裂筋、裏声＝輪状甲状筋」とは言い切れません。</p>
+      <p><b>後輪状披裂筋</b><br>声帯を開く筋肉です。発声中はほぼ静かで、重い声区の高音ではある程度働きます。甲状披裂筋の拮抗筋ではありません。</p>
+      <p><b>舌骨上筋群・舌骨下筋群</b><br>喉頭の位置は、頸椎のカーブなどでも変わります。舌骨下筋群のすべてが喉頭を下げるわけではありません。</p>
+      <p><b>数字について</b><br>筋肉の割合や声の高さの数字は、画面表示用の目安です。実測ではありません。</p>
+      <p><b>声の高さと筋肉の目安</b><br>約300Hz（D4付近）より低い音では、甲状披裂筋が優位な音も出てきます。約300Hzを超えると、声区に関係なく、輪状甲状筋が優位か、ほぼ同程度と報告されています（被験者7名・ほぼ女性の報告に基づく目安。一般論として断言はできません）。</p>
+      <p><b>参考にした文献</b><br>
+      ・<a href="https://pubs.aip.org/asa/jasa/article/58/S1/S95/681311/Function-of-the-laryngeal-muscles-in-singing" target="_blank" rel="noopener">Hirano 1975（歌唱時の喉頭筋の働き）</a><br>
+      ・<a href="https://www.thevoicecollege.co.uk/uploads/7/8/4/2/7842626/ct_and_ta_muscle_dominance_in_register_control_(kochis-jennings_et_al)_lc.pdf" target="_blank" rel="noopener">Kochis-Jennings et al. 2014（CTとTAの優位と声区）</a><br>
+      ・<a href="https://iro.uiowa.edu/esploro/outputs/graduate/Thyroarytenoid-and-cricothyroid-muscular-activity-in/9983776804102771" target="_blank" rel="noopener">Hull 2013（Univ. of Iowa）</a><br>
+      ・<a href="https://www.surgery.medsch.ucla.edu/spl/papers/2013JASA05.pdf" target="_blank" rel="noopener">Yin &amp; Zhang 2013</a></p>
+    </details>
     <div class="extra">
       <h3>本物の録音を聴いてみる（聴き比べ用）</h3>
       <p>フェーダーの音は「ふつうの声」の音色を変えたものです。本物の録音と聴き比べてみてください。最後の5つは、フェーダーでは動かせない「音の高さ」や「地声から裏声へのつながり」の録音です。</p>
       <div class="seg" id="extras"></div>
     </div>
-    <p class="warn-s">※ 音量に注意してください。最初は小さめの音量から聞いてね。音が出ないときは、iPhoneの消音スイッチも確認してください。<br>※ 声の高さと音色は、筋肉の値に合わせて変わります。輪状甲状筋を引くほど高く、甲状披裂筋を引くほど低くなります。<br>※ 声帯の閉じ具合・声の厚み・喉の開き具合は、それぞれ別の軸として、ρ本人の録音の間を連続でつないでいます（息もれ―ふつう―押し込み／地声―ふつう―裏声／喉頭が下がる―ふつう―上がる）。3つの変化は足し合わせています。<br>※ 土台の声は2つ。ふつうの声の録音と、C5で録音した裏声の録音です。地声から裏声に変わるあたり（声が裏返る換声点のイメージ）で、同じ高さにそろえて短くなめらかに切り替えます。押し込みのザラつきなどの質感までは再現しきれません。<br>※ 各声に割り当てた筋肉の値は、発声の仕組みから考えた「目安のイメージ」で、実測ではありません。喉の中は見えないので、「この声のとき、この筋肉が主に働いていると考えられる」という位置づけです。実際の発声は、これらの筋肉が同時にからみ合って決まります。</p>
+    <p class="warn-s">※ 音量に注意してください。最初は小さめの音量から聞いてね。音が出ないときは、iPhoneの消音スイッチも確認してください。<br>※ 声の高さと音色は、筋肉の値に合わせて変わります。声の高さは画面表示用の目安として、輪状甲状筋を引くほど高く、甲状披裂筋を引くほど低くなるようにしています（実際は両方が同時に働きます）。<br>※ 声帯の閉じ具合・声の厚み・喉の開き具合は、それぞれ別の軸として、ρ本人の録音の間を連続でつないでいます（息もれ―ふつう―押し込み／地声―ふつう―裏声／喉頭が下がる―ふつう―上がる）。3つの変化は足し合わせています。<br>※ 土台の声は2つ。ふつうの声の録音と、C5で録音した裏声の録音です。地声から裏声に変わるあたり（声が裏返る換声点のイメージ）で、同じ高さにそろえて短くなめらかに切り替えます。押し込みのザラつきなどの質感までは再現しきれません。<br>※ 各声に割り当てた筋肉の値は、発声の仕組みから考えた「目安のイメージ」で、実測ではありません。喉の中は見えないので、「この声のとき、この筋肉が主に働いていると考えられる」という位置づけです。実際の発声は、これらの筋肉が同時にからみ合って決まります。</p>
   </section>
 
   <section class="cta">
@@ -238,7 +256,7 @@ var MUSCLES = [
   { id:'pca', grp:'in', name:'後輪状披裂筋', yomi:'こうりんじょうひれつきん', eng:'Posterior cricoarytenoid', abbr:'PCA',
     aliases:['声帯を開く','声門を開く','外転','開く筋','息を吸う','ひらく','ひらくきん','あける'], tags:[['開く','amber']],
     action:'披裂軟骨を外側に回して、声帯を開く筋肉。声帯を開ける役目をもつ唯一の内喉頭筋です。',
-    voice:'息を吸うときに働きます。声を出している間は「閉じる」筋肉と綱引きをして、声門の開き具合（息の混ざり方）を調整します。',
+    voice:'息を吸うときに働きます。声を出している間はほぼ静かで、「閉じる」筋肉（外側輪状披裂筋・披裂筋）との綱引きで、声門の開き具合（息の混ざり方）に関わります。重い声区の高音では、ある程度働くことがあります。',
     where:'輪状軟骨の後ろの板（輪状軟骨板）から、披裂軟骨の筋突起へ。', nerve:'反回神経',
     shapes:['pca'] },
   { id:'lca', grp:'in', name:'外側輪状披裂筋', yomi:'がいそくりんじょうひれつきん', eng:'Lateral cricoarytenoid', abbr:'LCA',
@@ -266,13 +284,13 @@ var MUSCLES = [
   { id:'ta', grp:'in', name:'甲状披裂筋', yomi:'こうじょうひれつきん', eng:'Thyroarytenoid', abbr:'TA',
     aliases:['声帯筋','vocalis','声帯そのもの','地声','チェスト','緩める','ゆるめる','とじる','せいたいきん'], tags:[['閉じる',''],['声帯をゆるめる','gray']],
     action:'声帯の本体をつくる筋肉。縮んで声帯を短く・厚くし、声帯を閉じる方向にも働きます。',
-    voice:'地声（チェストボイス）の厚みや芯に関わります。輪状甲状筋の「伸ばす」力との綱引きのバランスが、地声⇄裏声のつながりに影響します。',
+    voice:'声帯の厚みや芯に関わる筋肉です。輪状甲状筋と同時に働く（共収縮）ことが多く、「地声＝甲状披裂筋、裏声＝輪状甲状筋」と単純には分けられません。声区よりも、声の高さのほうが影響が大きいと報告されています。',
     where:'甲状軟骨の内側（前）から、披裂軟骨へ。', nerve:'反回神経',
     shapes:['ta'], note:'後ろからは、甲状軟骨の内側に向かう部分だけが見えます。横から・上からの図で全体を確認できます。' },
   { id:'ct', grp:'in', name:'輪状甲状筋', yomi:'りんじょうこうじょうきん', eng:'Cricothyroid', abbr:'CT',
     aliases:['声帯を伸ばす','高音','裏声','ファルセット','伸ばす筋','のばす','のばすきん','こうおん'], tags:[['伸ばす','amber']],
     action:'甲状軟骨を前下方に傾けて、声帯を前後に引き伸ばして薄く張る筋肉。',
-    voice:'高い音程を出すときの主役です。伸ばす（輪状甲状筋）と縮める（甲状披裂筋）の綱引きが、地声と裏声のバランスをつくります。',
+    voice:'高い音程を出すときによく働く筋肉です。甲状披裂筋と同時に働くことが多く、どちらが優位かは声区よりも声の高さに左右されます（約300Hzを超えるあたりから、輪状甲状筋が優位か、ほぼ同程度という報告があります）。',
     where:'輪状軟骨の前外側から、甲状軟骨の下縁へ。', nerve:'上喉頭神経（外枝）。ほかの内喉頭筋は反回神経',
     shapes:['ct'] },
 
@@ -285,7 +303,7 @@ var MUSCLES = [
   { id:'o_down', grp:'out', pullKey:'o_down', name:'舌骨下筋群', yomi:'ぜっこつかきんぐん', eng:'Infrahyoid muscles', abbr:'',
     aliases:['下制筋群','喉頭を下げる','引き下げ','かせい','さげる'], tags:[['下制（下げる）','gray']],
     action:'舌骨より下にある筋肉の集まり（胸骨舌骨筋・肩甲舌骨筋・胸骨甲状筋・甲状舌骨筋）。舌骨と喉頭を引き下げ、安定させます。',
-    voice:'挙上筋群との綱引きで、喉頭の高さが決まります。',
+    voice:'挙上筋群との綱引きで、喉頭の高さが決まります。ただし、舌骨下筋群のすべてが喉頭を下げるわけではなく（甲状舌骨筋は引き上げます）、喉頭の位置は頸椎のカーブなどでも変わります。',
     where:'舌骨・甲状軟骨 ⇄ 胸骨・肩甲骨', nerve:'頸神経ワナ（甲状舌骨筋は舌下神経経由の C1）', shapes:['o_down'] },
   { id:'digastric', grp:'out', via:'o_up', name:'顎二腹筋', yomi:'がくにふくきん', eng:'Digastric', abbr:'', aliases:['舌骨上筋群','挙上筋群'], tags:[['挙上（上げる）','amber']], child:true,
     action:'あごの先と側頭骨の後ろを結ぶ筋肉。舌骨を引き上げ、あごを開く働きもあります。', voice:'', where:'', nerve:'', shapes:[] },
@@ -648,9 +666,9 @@ var PAIRS = [
   { a:['ta'],   b:['ct'] },            /* 縮めて厚く ⇔ 伸ばして薄く */
   { a:['o_up'], b:['o_down'] }         /* 喉頭を上げる ⇔ 下げる */
 ];
-/* 輪状甲状筋を引くと、胸骨甲状筋（舌骨下筋群）が喉頭を下に支える（アンカー）ので、舌骨下筋群もいっしょに強まる。
+/* （あき先生の確認で、根拠が弱いとわかったので、いまはOFF。）輪状甲状筋を引くと、胸骨甲状筋（舌骨下筋群）が喉頭を下に支える、という考え方での連動。
    どちらを動かしても、もう片方が半分だけついてくる（双方向） */
-var FOLLOW_ON = true;       /* false にすると、この連動をやめる（1行で戻せる） */
+var FOLLOW_ON = false;      /* 輪状甲状筋⇔胸骨甲状筋の連動：根拠が弱いので、いまはOFF（true にすると、動いた分の半分だけついてくる） */
 var FOLLOW = .5;            /* 輪状甲状筋の動きに対して、舌骨下筋群がついてくる割合（0〜1） */
 function lname(id){ for (var i=0;i<LAB.length;i++) if (LAB[i].id===id) return LAB[i].name; return id; }
 function coupleFrom(id, snap){
@@ -886,6 +904,9 @@ function mixPct(a){
 function renderRead(){
   var mt=morphTarget(), rows=axText(mt), mx=mixPct(mt.ax), i;
   var h='<div class="top1">声の高さ：'+(mt.v<.15?'なし（息の音だけ）':noteName(mt.hz)+'（約'+Math.round(mt.hz)+'Hz）')+'</div>';
+  if (mt.v>=.15){
+    h+='<div class="far">'+(mt.hz<300 ? 'この高さ（約300Hz未満）では、甲状披裂筋が優位な音も出てきます。' : 'この高さ（約300Hz以上）では、声区に関係なく、輪状甲状筋が優位か、甲状披裂筋とほぼ同程度と報告されています。')+'<br><small>画面表示用の目安（被験者7名・ほぼ女性の報告）</small></div>';
+  }
   h+='<dl style="display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:13.5px">';
   for (i=0;i<rows.length;i++) h+='<dt style="font-weight:700; color:var(--text-dim)">'+rows[i][0]+'</dt><dd style="font-weight:900; color:var(--navy)">'+rows[i][1]+'</dd>';
   h+='</dl><h3 class="sl-h" style="margin:14px 0 6px">声の混ざり具合</h3>';
