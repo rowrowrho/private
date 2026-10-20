@@ -200,7 +200,7 @@
     </div>
     <p class="lmsg" id="lmsg" role="status"></p>
     <div class="seg" id="linkrow" style="margin-top:10px"><b>筋肉の連動</b><button type="button" id="linkBtn" aria-pressed="true">ON</button></div>
-    <p class="linkx" id="linkmsg" role="status">ON：反対にはたらく筋肉は、一方を強く引くと、もう一方が自然に下がります。</p>
+    <p class="linkx" id="linkmsg" role="status">ON：反対にはたらく筋肉どうしは、合計がいつも100％になります（開く＋閉じる／厚く＋薄く／上げる＋下げる）。</p>
     <div class="presets"><h3>お手本の組み合わせ（押すと鳴ります）</h3><div class="seg" id="presets"></div></div>
     <div id="sliders"></div>
     <div class="read"><div id="readout"></div></div>
@@ -300,7 +300,7 @@ var MUSCLES = [
 ];
 
 /* ===== 状態 ===== */
-var state = { grp:'in', sel:null, view:'post', q:'', pull:{ pca:.1, lca:.5, ia:.5, ta:.5, ct:.5, o_up:.5, o_down:.5 } };
+var state = { grp:'in', sel:null, view:'post', q:'', pull:{ pca:.3, lca:.7, ia:.7, ta:.5, ct:.5, o_up:.5, o_down:.5 } };
 function $(id){ return document.getElementById(id); }
 function byId(id){ for (var i=0;i<MUSCLES.length;i++) if (MUSCLES[i].id===id) return MUSCLES[i]; return null; }
 function viewById(id){ for (var i=0;i<VIEWS.length;i++) if (VIEWS[i].id===id) return VIEWS[i]; return null; }
@@ -502,15 +502,15 @@ var LAB = [
 ];
 /* 録音ごとの「筋肉の値」の目安（0〜1）。実測ではなく、仕組みから考えたイメージ */
 var LV = [
-  { id:'01', name:'ふつうの声',     v:{ pca:.1,  lca:.5,  ia:.5,  ta:.5, ct:.5,  o_up:.5,  o_down:.5 } },
-  { id:'02', name:'息もれの声',     v:{ pca:.1,  lca:.2,  ia:.2,  ta:.5, ct:.5,  o_up:.5,  o_down:.5 } },
-  { id:'03', name:'ささやき',       v:{ pca:.95, lca:.1,  ia:.1,  ta:.3, ct:.5,  o_up:.5,  o_down:.5 } },
-  { id:'04', name:'押し込んだ声',   v:{ pca:.1,  lca:.95, ia:.95, ta:.6, ct:.5,  o_up:.5,  o_down:.5 } },
-  { id:'05', name:'弱く緩い声',     v:{ pca:.1,  lca:.3,  ia:.3,  ta:.3, ct:.5,  o_up:.5,  o_down:.5 } },
-  { id:'06', name:'地声（厚い）',   v:{ pca:.1,  lca:.5,  ia:.5,  ta:.9, ct:.3,  o_up:.5,  o_down:.5 } },
-  { id:'07', name:'裏声（薄い）',   v:{ pca:.1,  lca:.5,  ia:.5,  ta:.1, ct:.95, o_up:.5,  o_down:.5 } },
-  { id:'10', name:'喉が上がった声', v:{ pca:.1,  lca:.5,  ia:.5,  ta:.5, ct:.5,  o_up:.95, o_down:.1 } },
-  { id:'11', name:'喉が下がった声', v:{ pca:.1,  lca:.5,  ia:.5,  ta:.5, ct:.5,  o_up:.1,  o_down:.95 } }
+  { id:'01', name:'ふつうの声',     v:{ pca:.3,  lca:.7,  ia:.7,  ta:.5, ct:.5, o_up:.5, o_down:.5 } },
+  { id:'02', name:'息もれの声',     v:{ pca:.6,  lca:.4,  ia:.4,  ta:.5, ct:.5, o_up:.5, o_down:.5 } },
+  { id:'03', name:'ささやき',       v:{ pca:.9,  lca:.1,  ia:.1,  ta:.5, ct:.5, o_up:.5, o_down:.5 } },
+  { id:'04', name:'押し込んだ声',   v:{ pca:.05, lca:.95, ia:.95, ta:.6, ct:.4, o_up:.5, o_down:.5 } },
+  { id:'05', name:'弱く緩い声',     v:{ pca:.45, lca:.55, ia:.55, ta:.4, ct:.6, o_up:.5, o_down:.5 } },
+  { id:'06', name:'地声（厚い）',   v:{ pca:.25, lca:.75, ia:.75, ta:.9, ct:.1, o_up:.5, o_down:.5 } },
+  { id:'07', name:'裏声（薄い）',   v:{ pca:.3,  lca:.7,  ia:.7,  ta:.1, ct:.9, o_up:.5, o_down:.5 } },
+  { id:'10', name:'喉が上がった声', v:{ pca:.3,  lca:.7,  ia:.7,  ta:.5, ct:.5, o_up:.9, o_down:.1 } },
+  { id:'11', name:'喉が下がった声', v:{ pca:.3,  lca:.7,  ia:.7,  ta:.5, ct:.5, o_up:.1, o_down:.9 } }
 ];
 var EXTRAS = [
   { id:'08', name:'低め（ソ#3）' },
@@ -524,10 +524,11 @@ var MORPH = {"freqs": [260.0, 520.0, 780.0, 1040.0, 1300.0, 1560.0, 1820.0, 2080
 var lab = { playing:false, ctx:null, bufs:null, loading:false, dirty:false, want:false, g:null };
 
 /* 近い録音ほど大きい重み（なめらかに変わる。録音の位置ではその録音の音色になる） */
+var LW = { pca:.6, lca:.6, ia:.6, ta:1, ct:1, o_up:1, o_down:1 };   /* 開閉の3本は同じ軸なので、1本ぶんの重みを小さめに */
 function lvWeights(){
   var d2=[], mn=1e9, i, k;
   for (i=0;i<LV.length;i++){
-    var s=0; for (k=0;k<LAB.length;k++){ var q=state.pull[LAB[k].id]-LV[i].v[LAB[k].id]; s+=q*q; }
+    var s=0; for (k=0;k<LAB.length;k++){ var q=state.pull[LAB[k].id]-LV[i].v[LAB[k].id]; s+=LW[LAB[k].id]*q*q; }
     d2.push(s); if (s<mn) mn=s;
   }
   var w=[], sum=0;
@@ -546,33 +547,33 @@ function morphTarget(){
   }
   return { G:G, n:n, v:v, C:C, r:r };
 }
-/* 反対にはたらく筋肉どうし：合計に上限をつけて、一方を強く引くともう一方が下がる。
-   実際には両方が同時にはたらく（共収縮）こともあるので、完全な「どちらか一方」にはしていない */
+/* 反対にはたらく筋肉どうし：合計がいつも100%になるように連動する
+   （舌骨・甲状軟骨・輪状軟骨・披裂軟骨の位置関係が、どちらかが動くともう片方も決まるため） */
 var LINK_ON = true;         /* false にすると、連動なしで1本ずつ自由に動かせる（初期状態の切り替え） */
 var PAIRS = [
-  { a:['pca'],  b:['lca','ia'], max:1.1 },     /* 開く ⇔ 閉じる */
-  { a:['ta'],   b:['ct'],       max:1.2 },     /* 縮めて厚く ⇔ 伸ばして薄く（ミックスは両方中くらい） */
-  { a:['o_up'], b:['o_down'],   max:1.1 }      /* 喉頭を上げる ⇔ 下げる */
+  { a:['pca'],  b:['lca','ia'] },      /* 開く ⇔ 閉じる（閉じる2本は一緒に動く） */
+  { a:['ta'],   b:['ct'] },            /* 縮めて厚く ⇔ 伸ばして薄く */
+  { a:['o_up'], b:['o_down'] }         /* 喉頭を上げる ⇔ 下げる */
 ];
 function lname(id){ for (var i=0;i<LAB.length;i++) if (LAB[i].id===id) return LAB[i].name; return id; }
 function coupleFrom(id){
-  var moved=[], i, j, k;
+  var moved=[], i, j;
   for (i=0;i<PAIRS.length;i++){
     var P=PAIRS[i], mine=null, other=null;
     if (P.a.indexOf(id)>=0){ mine=P.a; other=P.b; } else if (P.b.indexOf(id)>=0){ mine=P.b; other=P.a; } else continue;
     var v=state.pull[id];
-    for (j=0;j<other.length;j++){
-      var o=other[j], lim=Math.max(0, P.max-v);
-      if (state.pull[o]>lim+1e-6){ state.pull[o]=Math.round(lim*100)/100; moved.push(o); }
-    }
+    for (j=0;j<other.length;j++){ state.pull[other[j]]=Math.round((1-v)*100)/100; moved.push(other[j]); }
+    for (j=0;j<mine.length;j++){ if (mine[j]!==id){ state.pull[mine[j]]=v; moved.push(mine[j]); } }
   }
   return moved;
 }
+function linkAll(){ for (var i=0;i<PAIRS.length;i++) coupleFrom(PAIRS[i].a[0]); }   /* ONにした直後に、ぜんぶ合計100%へそろえる */
+var LINK_ON_TXT='ON：反対にはたらく筋肉どうしは、合計がいつも100％になります（開く＋閉じる／厚く＋薄く／上げる＋下げる）。';
 function linkNote(moved){
   var e=$('linkmsg'); if (!e) return;
   if (!LINK_ON){ e.textContent='OFF：1本ずつ自由に動かせます（実際には起こりにくい組み合わせも作れます）。'; return; }
-  if (moved && moved.length){ var nm=moved.map(lname); e.textContent='連動：'+nm.join('・')+'が下がりました。'; }
-  else e.textContent='ON：反対にはたらく筋肉は、一方を強く引くと、もう一方が自然に下がります。';
+  if (moved && moved.length){ var nm=moved.map(lname); e.textContent='連動：'+nm.join('・')+'も動きました（合計100％）。'; }
+  else e.textContent=LINK_ON_TXT;
 }
 function lmsg(t){ var e=$('lmsg'); if (e) e.textContent=t||''; }
 
@@ -739,7 +740,7 @@ function syncSliders(){ LAB.forEach(function(L){ var i=$('si_'+L.id); if (i){ i.
   });
   var lb=$('linkBtn');
   function drawLink(){ lb.setAttribute('aria-pressed', LINK_ON?'true':'false'); lb.textContent = LINK_ON?'ON':'OFF'; linkNote(null); }
-  lb.addEventListener('click', function(){ LINK_ON=!LINK_ON; drawLink(); track('lab_link',{on:LINK_ON}); });
+  lb.addEventListener('click', function(){ LINK_ON=!LINK_ON; if (LINK_ON){ linkAll(); syncSliders(); renderFig(); labUpdate(); } drawLink(); track('lab_link',{on:LINK_ON}); });
   drawLink();
   $('play').addEventListener('click', function(){
     if (lab.playing || lab.want) labStop(); else labStart();
