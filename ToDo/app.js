@@ -1,438 +1,211 @@
-
 'use strict';
 
 const cfg = window.RHO_CONFIG || {};
-const SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
-const API = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(cfg.SPREADSHEET_ID)}`;
+const KEY_STORE = 'rho_todo_key';
+const PRI = { '最優先': 4, '高': 3, '中': 2, '低': 1 };
 
-let tokenClient = null;
-let accessToken = null;
-let tasks = [];
-let routines = [];
+let data = null;
 let filter = 'today';
 let busy = false;
+const prev = {}; // 完了にする前の状態（チェックを外したとき元に戻す用）
 
 const $ = id => document.getElementById(id);
 
-const today = () => {
-  return new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Asia/Tokyo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).format(new Date());
-};
-
-const tomorrow = () => {
-  const d = new Date(`${today()}T12:00:00+09:00`);
-  d.setDate(d.getDate() + 1);
-  return new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Asia/Tokyo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).format(d);
-};
-
-function show(message, error = false) {
-  const el = $('status');
-  el.textContent = message;
-  el.style.color = error ? '#a32828' : '#53647a';
+function show(msg, err = false) {
+  $('status').textContent = msg || '';
+  $('status').className = err ? 'err' : '';
 }
 
-function init() {
-  $('todayLabel').textContent = new Intl.DateTimeFormat('ja-JP', {
-    dateStyle: 'full',
-    timeZone: 'Asia/Tokyo'
-  }).format(new Date());
-
-  $('authBtn').onclick = login;
-  $('sendBtn').onclick = sendCommand;
-
-  $('command').addEventListener('keydown', e => {
-    if (e.key === 'Enter') sendCommand();
-  });
-
-  document.querySelectorAll('.tabs button').forEach(button => {
-    button.onclick = () => {
-      filter = button.dataset.filter;
-      document.querySelectorAll('.tabs button').forEach(b => {
-        b.classList.toggle('active', b === button);
-      });
-      render();
-    };
-  });
-
-  if (!cfg.GOOGLE_CLIENT_ID ||
-      cfg.GOOGLE_CLIENT_ID.startsWith('PASTE_')) {
-    show('config.js にGoogle OAuthクライアントIDを設定してください。', true);
-  }
+function getKey() {
+  try { return localStorage.getItem(KEY_STORE) || ''; } catch (e) { return ''; }
+}
+function setKey(v) {
+  try { v ? localStorage.setItem(KEY_STORE, v) : localStorage.removeItem(KEY_STORE); } catch (e) {}
 }
 
-function login() {
-  if (!cfg.GOOGLE_CLIENT_ID ||
-      cfg.GOOGLE_CLIENT_ID.startsWith('PASTE_')) {
-    return show('OAuthクライアントIDが未設定です。', true);
-  }
-
-  if (!window.google?.accounts?.oauth2) {
-    return show('Google認証ライブラリを読み込めませんでした。', true);
-  }
-
-  if (accessToken) {
-    accessToken = null;
-    tasks = [];
-    routines = [];
-    $('authBtn').textContent = 'Googleでログイン';
-    render();
-    return show('ログアウトしました。');
-  }
-
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: cfg.GOOGLE_CLIENT_ID,
-    scope: SCOPE,
-    callback: async response => {
-      if (response.error) {
-        return show('認証失敗：' + response.error, true);
-      }
-      accessToken = response.access_token;
-      $('authBtn').textContent = 'ログアウト';
-      await load();
-    }
+// GASへのリクエスト。text/plain にして CORS の事前確認を避ける。合言葉は本文に入れる（URLには載せない）
+async function api(body) {
+  const res = await fetch(cfg.GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ ...body, key: getKey() })
   });
-
-  tokenClient.requestAccessToken({ prompt: 'consent' });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'エラー');
+  return json.data;
 }
 
-async function sheets(path, options = {}) {
-  if (!accessToken) throw Error('ログインしてください');
-
-  const response = await fetch(`${API}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(options.headers || {})
-    }
-  });
-
-  const result = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      accessToken = null;
-      $('authBtn').textContent = 'Googleでログイン';
-    }
-    throw Error(result.error?.message || `API error ${response.status}`);
-  }
-
-  return result;
+function needLogin(msg) {
+  $('app').hidden = true;
+  $('login').hidden = false;
+  show(msg || '合言葉を入力してください。', !!msg);
+  $('key').focus();
 }
-
-const range = value => encodeURIComponent(value);
 
 async function load() {
+  if (!cfg.GAS_URL || cfg.GAS_URL.startsWith('PASTE_')) {
+    return show('config.js に GAS のURLを設定してください。', true);
+  }
+  if (!getKey()) return needLogin();
+
+  show('読み込み中…');
   try {
-    show('スプレッドシートから読み込み中…');
-
-    const result = await sheets(
-      `/values:batchGet?ranges=${range("'タスク一覧'!A2:J500")}` +
-      `&ranges=${range("'日課マスター'!A2:H500")}`
-    );
-
-    tasks = (result.valueRanges?.[0]?.values || [])
-      .map((r, i) => ({
-        row: i + 2,
-        id: r[0] || '',
-        name: r[1] || '',
-        kind: r[2] || '',
-        area: r[3] || '',
-        priority: r[4] || '',
-        due: r[5] || '',
-        status: r[6] || '未着手',
-        minutes: r[7] || '',
-        memo: r[8] || ''
-      }))
-      .filter(t => t.id && t.name);
-
-    routines = (result.valueRanges?.[1]?.values || [])
-      .map(r => ({
-        id: r[0] || '',
-        name: r[1] || '',
-        area: r[2] || '',
-        frequency: r[3] || '',
-        priority: r[4] || '',
-        setting: r[6] || ''
-      }))
-      .filter(r => r.id && r.name);
-
+    data = await api({ action: 'list' });
+    $('login').hidden = true;
+    $('app').hidden = false;
     render();
-    show('Googleスプレッドシートと接続しました。');
-
-  } catch (error) {
-    show('読み込みエラー：' + error.message, true);
+    show('スプレッドシートと同期しました（' +
+      new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) + '）');
+  } catch (e) {
+    if (e.message === 'auth') { setKey(''); return needLogin('合言葉が違います。'); }
+    show('読み込みエラー：' + e.message, true);
   }
 }
 
-function relevant(task) {
-  return !task.due || task.due <= today();
-}
+const isDone = t => t.status === '完了';
 
-function allItems() {
-  const base = tasks.map(t => ({ ...t, routine: false }));
-
-  const daily = routines
-    .filter(r => r.frequency === '毎日')
-    .map(r => ({
-      ...r,
-      status: '未確認',
-      due: today(),
-      routine: true
-    }));
-
-  return [...base, ...daily];
-}
-
-function priority(value) {
-  return {
-    '最優先': 4,
-    '高': 3,
-    '中': 2,
-    '低': 1
-  }[value] || 0;
+function cmp(a, b) {
+  const pa = PRI[a.priority] || 0, pb = PRI[b.priority] || 0;
+  const da = a.due || '9999', db = b.due || '9999';
+  if ($('sort').value === 'due') return da < db ? -1 : da > db ? 1 : pb - pa;
+  return pb - pa || (da < db ? -1 : da > db ? 1 : 0);
 }
 
 function render() {
-  const all = allItems();
-  const now = all.filter(t =>
-    (!t.routine && relevant(t) && t.status !== '完了') ||
-    t.routine
-  );
-  const done = all.filter(t => t.status === '完了');
+  if (!data) return;
+  const t = data.today;
+  const { tasks, routines } = data;
 
-  let shown = filter === 'today'
-    ? now
-    : filter === 'done'
-      ? done
-      : all;
+  $('todayLabel').textContent = new Date(t + 'T12:00:00+09:00')
+    .toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
 
-  shown = shown.slice().sort(
-    (a, b) => priority(b.priority) - priority(a.priority)
-  );
+  const todayTasks = tasks.filter(x => !isDone(x) && (!x.due || x.due <= t));
+  const left = todayTasks.length + routines.filter(x => !isDone(x)).length;
+  $('progress').textContent =
+    `未完了 ${left}件 ・ 日課の完了 ${routines.filter(isDone).length}/${routines.length}`;
+  $('ring').textContent = left;
 
-  const list = $('taskList');
+  let groups;
+  if (filter === 'today') {
+    groups = [
+      ['単発タスク（期限が今日まで・期限なし）', todayTasks.sort(cmp)],
+      ['日課（毎日）', routines.slice().sort(cmp)]
+    ];
+  } else if (filter === 'all') {
+    groups = [
+      ['未完了', tasks.filter(x => !isDone(x)).sort(cmp)],
+      ['完了済み', tasks.filter(isDone).sort(cmp)]
+    ];
+  } else {
+    groups = [
+      ['完了済みタスク', tasks.filter(isDone).sort(cmp)],
+      ['今日完了した日課', routines.filter(isDone)]
+    ];
+  }
+
+  const list = $('list');
   list.replaceChildren();
-
-  if (!shown.length) {
-    const empty = document.createElement('div');
-    empty.className = 'empty';
-    empty.textContent = accessToken
-      ? '該当するタスクはありません。'
-      : 'ログインすると表示されます。';
-    list.append(empty);
+  for (const [title, items] of groups) {
+    if (!items.length) continue;
+    const h = document.createElement('div');
+    h.className = 'group';
+    h.textContent = `${title}　${items.length}件`;
+    list.append(h, ...items.map(x => row(x, t)));
   }
-
-  for (const task of shown) {
-    const row = document.createElement('article');
-    row.className = 'task' +
-      (task.status === '完了' ? ' is-done' : '');
-
-    const left = document.createElement('div');
-    left.className = 'task-left';
-
-    const check = document.createElement('input');
-    check.type = 'checkbox';
-    check.checked = task.status === '完了';
-    check.disabled = busy || task.routine;
-    check.setAttribute('aria-label', task.name + 'を完了にする');
-    check.onchange = () => complete(task, check.checked);
-
-    const info = document.createElement('div');
-
-    const name = document.createElement('div');
-    name.className = 'task-name';
-    name.textContent = task.name;
-
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    meta.textContent = [
-      task.area || '',
-      task.due || (task.routine ? '日課' : ''),
-      task.status
-    ].filter(Boolean).join(' · ');
-
-    info.append(name, meta);
-    left.append(check, info);
-
-    const badge = document.createElement('span');
-    badge.className = 'priority';
-    badge.textContent = task.priority || '通常';
-
-    row.append(left, badge);
-    list.append(row);
+  if (!list.children.length) {
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = '該当するタスクはありません 🎉';
+    list.append(e);
   }
-
-  const active = now.filter(t => t.status !== '完了');
-
-  $('progressLabel').textContent =
-    `今日の未完了 ${active.length}件 ・ 完了済み ${done.length}件`;
-
-  $('progressRing').textContent = String(active.length);
 }
 
-async function complete(task, checked = true) {
-  if (task.routine) {
-    return show('日課の完了記録は次期バージョンで対応予定です。', true);
+function row(x, t) {
+  const el = document.createElement('article');
+  el.className = 'task' + (isDone(x) ? ' is-done' : '');
+
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = isDone(x);
+  cb.disabled = busy;
+  cb.setAttribute('aria-label', x.name + 'を完了にする');
+  cb.onchange = () => toggle(x, cb.checked);
+
+  const info = document.createElement('div');
+  info.className = 'info';
+  const n = document.createElement('div');
+  n.className = 'name';
+  n.textContent = x.name;
+  const m = document.createElement('div');
+  m.className = 'meta';
+  m.textContent = [x.area, x.routine ? '日課' : '', x.due ? '期限 ' + x.due : '',
+    x.status, x.minutes ? x.minutes + '分' : ''].filter(Boolean).join(' · ');
+  if (!x.routine && x.due && x.due < t && !isDone(x)) {
+    const l = document.createElement('span');
+    l.className = 'late';
+    l.textContent = ' · 期限切れ';
+    m.append(l);
+  }
+  info.append(n, m);
+  if (x.memo) {
+    const me = document.createElement('div');
+    me.className = 'memo';
+    me.textContent = x.memo;
+    info.append(me);
   }
 
+  const p = document.createElement('span');
+  p.className = 'pri p' + (PRI[x.priority] || 0);
+  p.textContent = x.priority || '通常';
+
+  el.append(cb, info, p);
+  return el;
+}
+
+async function toggle(x, done) {
   if (busy) return;
   busy = true;
   render();
-
+  show('保存中…');
   try {
-    const cell = `'タスク一覧'!G${task.row}`;
-    const status = checked ? '完了' : '未着手';
-
-    await sheets(
-      `/values/${range(cell)}?valueInputOption=USER_ENTERED`,
-      {
-        method: 'PUT',
-        body: JSON.stringify({
-          range: cell,
-          majorDimension: 'ROWS',
-          values: [[status]]
-        })
-      }
-    );
-
-    task.status = status;
-    show(`${task.name} → ${status}`);
-
-  } catch (error) {
-    show('更新失敗：' + error.message, true);
-
-  } finally {
-    busy = false;
-    render();
-  }
-}
-
-async function addTask(name, due = '') {
-  if (busy) return;
-
-  busy = true;
-  $('sendBtn').disabled = true;
-
-  try {
-    const id = 'T' + Date.now();
-
-    const row = [
-      id,
-      name,
-      '単発',
-      'その他',
-      '中',
-      due,
-      '未着手',
-      '',
-      'アプリから追加',
-      today()
-    ];
-
-    await sheets(
-      `/values/${range("'タスク一覧'!A:J")}:append` +
-      '?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS',
-      {
-        method: 'POST',
-        body: JSON.stringify({ values: [row] })
-      }
-    );
-
-    await load();
-    show('追加しました：' + name);
-
-  } catch (error) {
-    show('追加失敗：' + error.message, true);
-
-  } finally {
-    busy = false;
-    $('sendBtn').disabled = false;
-  }
-}
-
-async function sendCommand() {
-  const raw = $('command').value.trim();
-  if (!raw) return;
-
-  if (!accessToken) {
-    return show('まずGoogleでログインしてください。', true);
-  }
-
-  // 今日のタスク確認
-  if (/^(今日(は|の)?(何|なに|やること)|今日のToDo|一覧|リスト)/.test(raw)) {
-    filter = 'today';
-
-    document.querySelectorAll('.tabs button').forEach(b => {
-      b.classList.toggle('active', b.dataset.filter === 'today');
-    });
-
-    render();
-    show('今日のタスクを表示しました。');
-    $('command').value = '';
-    return;
-  }
-
-  // 完了登録
-  if (/(完了|終わった|済んだ|できた)(よ|！|!|。)?$/.test(raw)) {
-    const key = raw.replace(
-      /(を)?(完了|終わった|済んだ|できた)(よ|！|!|。)?$/,
-      ''
-    ).trim();
-
-    const matches = tasks.filter(t =>
-      t.status !== '完了' &&
-      (t.name.includes(key) || key.includes(t.name))
-    );
-
-    if (matches.length === 1) {
-      await complete(matches[0]);
-      $('command').value = '';
-
+    if (x.routine) {
+      data = await api({ action: 'routine', id: x.id, done });
     } else {
-      show(
-        matches.length === 0
-          ? '一致する未完了タスクが見つかりません。'
-          : '候補が複数あります。タスク名を詳しく入力してください。',
-        true
-      );
+      if (done) prev[x.id] = x.status;
+      data = await api({ action: 'task', id: x.id, done,
+        prev: done ? x.status : (prev[x.id] || '未着手') });
     }
-    return;
+    show(`${x.name} → ${done ? '完了' : '戻しました'}`);
+  } catch (e) {
+    show('保存できませんでした：' + e.message, true);
+  } finally {
+    busy = false;
+    render();
   }
-
-  // 新規タスク登録
-  let name = raw;
-  let due = '';
-
-  if (/^(明日|あした)/.test(raw)) {
-    due = tomorrow();
-    name = raw.replace(/^(明日|あした)(までに|は|に)?/, '').trim();
-
-  } else if (/^(今日|きょう)/.test(raw)) {
-    due = today();
-    name = raw.replace(/^(今日|きょう)(までに|は|に)?/, '').trim();
-  }
-
-  name = name.replace(
-    /(を)?(追加して|登録して|やる予定|やらなきゃ|する予定)(ね|よ)?$/,
-    ''
-  ).trim();
-
-  if (!name) {
-    return show('追加するタスク名を入力してください。', true);
-  }
-
-  await addTask(name, due);
-  $('command').value = '';
 }
 
-window.addEventListener('DOMContentLoaded', init);
+window.addEventListener('DOMContentLoaded', () => {
+  $('login').onsubmit = e => {
+    e.preventDefault();
+    const v = $('key').value.trim();
+    if (!v) return;
+    setKey(v);
+    $('key').value = '';
+    load();
+  };
+  $('logout').onclick = () => { setKey(''); data = null; needLogin(); };
+  $('reload').onclick = load;
+  $('sort').onchange = render;
+  document.querySelectorAll('.tabs button').forEach(b => {
+    b.onclick = () => {
+      filter = b.dataset.f;
+      document.querySelectorAll('.tabs button').forEach(o => o.classList.toggle('active', o === b));
+      render();
+    };
+  });
+  // スマホでアプリに戻ってきたら自動で最新にする
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && data && !busy) load();
+  });
+  load();
+});
