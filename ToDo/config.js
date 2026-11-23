@@ -1,0 +1,5 @@
+
+window.RHO_CONFIG = {
+  GOOGLE_CLIENT_ID: 'PASTE_YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com',
+  SPREADSHEET_ID: '1HD86oQbP6QPrHz8uB4r2bxoSU0iKebkII7KL6PWmZRc'
+};
