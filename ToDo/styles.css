@@ -1,0 +1,243 @@
+
+:root {
+  font-family: system-ui, -apple-system,
+    "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  color: #16243b;
+  background: #f3f6fa;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+
+.wrap {
+  max-width: 760px;
+  margin: auto;
+  padding: 22px 16px 80px;
+}
+
+header, .brand, .summary, .tabs,
+.form, .task, .task-left {
+  display: flex;
+  align-items: center;
+}
+
+header, .summary, .task {
+  justify-content: space-between;
+}
+
+.brand { gap: 12px; }
+
+.logo {
+  display: grid;
+  place-items: center;
+  background: #14263f;
+  color: white;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  font-size: 30px;
+}
+
+h1 { margin: 0; font-size: 20px; }
+
+header p {
+  margin: 2px 0 0;
+  color: #67758b;
+  font-size: 12px;
+}
+
+button {
+  border: 0;
+  border-radius: 12px;
+  background: #175bc3;
+  color: white;
+  font-weight: 700;
+  padding: 12px 15px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: .5;
+  cursor: wait;
+}
+
+.subtle {
+  background: white;
+  color: #245298;
+  border: 1px solid #cdd9ec;
+  font-size: 12px;
+}
+
+#status {
+  font-size: 13px;
+  color: #53647a;
+  margin: 20px 0;
+  min-height: 20px;
+}
+
+.summary {
+  border-radius: 22px;
+  background: #14263f;
+  color: white;
+  padding: 25px;
+  margin-top: 14px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  color: #a9c3f0;
+}
+
+.summary h2 {
+  font-size: 24px;
+  margin: 8px 0;
+}
+
+.summary p {
+  margin: 0;
+  color: #bed0e8;
+  font-size: 13px;
+}
+
+.ring {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 7px solid #6785a8;
+  font-weight: 700;
+}
+
+.tabs {
+  background: #e5ebf4;
+  border-radius: 14px;
+  padding: 4px;
+  gap: 5px;
+  margin: 20px 0;
+}
+
+.tabs button {
+  flex: 1;
+  background: transparent;
+  color: #63728a;
+}
+
+.tabs button.active {
+  background: white;
+  color: #193e72;
+  box-shadow: 0 2px 6px #0001;
+}
+
+.tasks {
+  display: grid;
+  gap: 10px;
+  min-height: 180px;
+}
+
+.task {
+  background: white;
+  padding: 15px;
+  border: 1px solid #e3e9f1;
+  border-radius: 15px;
+  gap: 10px;
+}
+
+.task-left {
+  gap: 12px;
+  min-width: 0;
+}
+
+.task input {
+  width: 21px;
+  height: 21px;
+  accent-color: #175bc3;
+  flex: none;
+}
+
+.task-name {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.task.is-done .task-name {
+  text-decoration: line-through;
+  color: #8691a3;
+}
+
+.meta {
+  color: #8290a2;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.priority {
+  border-radius: 20px;
+  padding: 5px 8px;
+  font-size: 11px;
+  color: #78521c;
+  background: #fff3d8;
+  white-space: nowrap;
+}
+
+.empty {
+  text-align: center;
+  padding: 55px 10px;
+  color: #748296;
+}
+
+.composer {
+  margin-top: 30px;
+  padding: 20px;
+  background: white;
+  border-radius: 18px;
+  border: 1px solid #e3e9f1;
+}
+
+.composer h2 {
+  font-size: 18px;
+  margin: 0 0 14px;
+}
+
+.composer small {
+  font-size: 11px;
+  color: #7e8b9e;
+  font-weight: 400;
+}
+
+.composer label {
+  display: block;
+  color: #596c85;
+  font-size: 12px;
+  margin-bottom: 7px;
+}
+
+.form { gap: 8px; }
+
+.form input {
+  flex: 1;
+  min-width: 0;
+  background: #f5f7fb;
+  border: 1px solid #ced8e5;
+  border-radius: 10px;
+  font-size: 15px;
+  padding: 13px;
+}
+
+.hint, footer {
+  font-size: 12px;
+  color: #7e8b9d;
+  line-height: 1.7;
+}
+
+footer {
+  margin-top: 24px;
+  text-align: center;
+}
+
+@media (max-width: 450px) {
+  .wrap { padding: 18px 12px 65px; }
+  .subtle { padding: 10px 8px; }
+  .summary { padding: 20px; }
+  .composer { padding: 16px; }
+}
