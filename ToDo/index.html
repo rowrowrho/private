@@ -40,20 +40,32 @@
       </section>
 
       <div class="bar">
-        <nav class="tabs" aria-label="表示範囲">
+        <nav class="tabs" aria-label="表示の切り替え">
           <button data-f="today" class="active">今日</button>
-          <button data-f="all">すべて</button>
-          <button data-f="done">完了</button>
+          <button data-f="tasks">タスク</button>
+          <button data-f="youtube">YouTube</button>
+          <button data-f="study">勉強</button>
+          <button data-f="shop">買い物</button>
         </nav>
-        <select id="sort" aria-label="並べ替え">
-          <option value="priority">優先度順</option>
-          <option value="due">期限順</option>
-        </select>
+        <div class="sortrow" id="sortRow">
+          <select id="sort" aria-label="並べ替え">
+            <option value="priority">優先度順</option>
+            <option value="due">期限順</option>
+          </select>
+        </div>
       </div>
 
-      <section id="list" aria-label="タスク一覧"></section>
+      <section id="list" aria-label="一覧"></section>
 
-      <footer><button id="logout" class="link">この端末の合言葉を消す</button></footer>
+      <form id="cmdForm" class="composer">
+        <div class="form">
+          <input id="cmd" autocomplete="off" placeholder="">
+          <button type="submit" id="cmdSend">送信</button>
+        </div>
+        <p class="hint" id="cmdHint"></p>
+      </form>
+
+      <footer><button id="logout" type="button" class="link">この端末の合言葉を消す</button></footer>
     </div>
   </main>
 </body>
