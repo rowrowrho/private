@@ -209,53 +209,57 @@ function row(x, t) {
 }
 
 function renderYouTube(list) {
-  if (ytError) {
-    list.append(emptyBox('YouTubeを読み込めませんでした：' + ytError));
-    return;
-  }
-  if (!yt) {
-    list.append(emptyBox('YouTubeを確認中…'));
-    return;
-  }
-  const filled = yt.slots.filter(s => s.video).length;
+  if (ytError) return list.append(emptyBox('YouTubeを読み込めませんでした：' + ytError));
+  if (!yt) return list.append(emptyBox('YouTubeを確認中…'));
+  yt.channels.forEach(c => renderChannel(list, c));
+}
+
+const mdw = at => {
+  const d = new Date(at.slice(0, 10) + 'T12:00:00+09:00');
+  return `${at.slice(5, 10).replace('-', '/')}（${'日月火水木金土'[d.getDay()]}）${at.slice(11)}`;
+};
+
+function renderChannel(list, c) {
+  const h = document.createElement('h3');
+  h.className = 'ch-title';
+  h.textContent = '📺 ' + c.name;
+  list.append(h);
+  if (c.error) return list.append(emptyBox(c.error));
+
   const head = document.createElement('p');
   head.className = 'yt-head';
-  head.textContent = `${yt.channel} ・ 次の${yt.slots.length}枠のうち ${filled}枠 予約済み（${yt.checkedAt} 確認）`;
-  list.append(head, groupTitle('投稿枠（月・金・日 20:00）'));
+  const last = c.scheduled.length ? c.scheduled[c.scheduled.length - 1].at : '';
+  head.textContent = (c.scheduled.length
+    ? `予約 ${c.scheduled.length}本 ・ ${mdw(last)} まで予約済み`
+    : '予約中の動画はありません') + `（${c.checkedAt} 確認）`;
+  list.append(head);
 
-  for (const s of yt.slots) {
-    const el = document.createElement('article');
-    el.className = 'task plain';
-    const info = document.createElement('div');
-    info.className = 'info';
-    const n = document.createElement('div');
-    n.className = 'name';
-    n.textContent = `${s.at.slice(5, 10).replace('-', '/')}（${s.dow}）${s.at.slice(11)}`;
-    const m = document.createElement('div');
-    m.className = 'meta';
-    m.textContent = s.video
-      ? s.video + (s.videoAt.slice(11) !== s.at.slice(11) ? `（${s.videoAt.slice(11)} に予約）` : '')
-      : 'まだ予約されていません';
-    info.append(n, m);
-    const badge = document.createElement('span');
-    badge.className = s.video ? 'slot-ok' : 'slot-ng';
-    badge.textContent = s.video ? '予約済み' : '未予約';
-    el.append(info, badge);
-    list.append(el);
+  if (c.slots) {
+    const filled = c.slots.filter(s => s.video).length;
+    list.append(groupTitle(`投稿枠（${c.slotLabel}）　${filled}/${c.slots.length}枠 予約済み`));
+    for (const s of c.slots) {
+      const sub = s.video
+        ? s.video + (s.videoAt.slice(11) !== s.at.slice(11) ? `（${s.videoAt.slice(11)} に予約）` : '')
+        : 'まだ予約されていません';
+      list.append(simpleRow(mdw(s.at), sub, s.video ? ['slot-ok', '予約済み'] : ['slot-ng', '未予約']));
+    }
+    const extra = c.scheduled.filter(v => !c.slots.some(s => s.video === v.title && s.videoAt === v.at));
+    if (extra.length) {
+      list.append(groupTitle('そのほかの予約'));
+      extra.forEach(v => list.append(simpleRow(v.title, mdw(v.at) + ' 公開予定')));
+    }
+  } else if (c.scheduled.length) {
+    list.append(groupTitle('予約中の動画'));
+    c.scheduled.forEach(v => list.append(simpleRow(v.title, mdw(v.at) + ' 公開予定', ['slot-ok', '予約済み'])));
   }
 
-  const extra = yt.scheduled.filter(v => !yt.slots.some(s => s.video === v.title && s.videoAt === v.at));
-  if (extra.length) {
-    list.append(groupTitle('そのほかの予約'));
-    extra.forEach(v => list.append(simpleRow(v.title, v.at + ' 公開予定')));
-  }
-  if (yt.recent.length) {
+  if (c.recent.length) {
     list.append(groupTitle('最近公開した動画'));
-    yt.recent.forEach(v => list.append(simpleRow(v.title, v.at + ' 公開')));
+    c.recent.forEach(v => list.append(simpleRow(v.title, mdw(v.at) + ' 公開')));
   }
 }
 
-function simpleRow(title, meta) {
+function simpleRow(title, meta, badge) {
   const el = document.createElement('article');
   el.className = 'task plain';
   const info = document.createElement('div');
@@ -268,6 +272,12 @@ function simpleRow(title, meta) {
   m.textContent = meta;
   info.append(n, m);
   el.append(info);
+  if (badge) {
+    const b = document.createElement('span');
+    b.className = badge[0];
+    b.textContent = badge[1];
+    el.append(b);
+  }
   return el;
 }
 
