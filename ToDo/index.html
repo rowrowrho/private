@@ -1,0 +1,70 @@
+
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#14263f">
+  <title>RHO ToDo</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="config.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div class="brand">
+        <span class="logo">ρ</span>
+        <div>
+          <h1>RHO ToDo</h1>
+          <p>今日やることを、ひと目で。</p>
+        </div>
+      </div>
+      <button id="authBtn" class="subtle">Googleでログイン</button>
+    </header>
+
+    <div id="status" role="status" aria-live="polite">
+      Googleアカウントでログインするとタスクを表示できます。
+    </div>
+
+    <section class="summary">
+      <div>
+        <span class="eyebrow" id="todayLabel"></span>
+        <h2>今日のToDo</h2>
+        <p id="progressLabel">未接続</p>
+      </div>
+      <div class="ring" id="progressRing">–</div>
+    </section>
+
+    <nav class="tabs" aria-label="タスクの表示範囲">
+      <button data-filter="today" class="active">今日</button>
+      <button data-filter="all">すべて</button>
+      <button data-filter="done">完了</button>
+    </nav>
+
+    <section id="taskList" class="tasks" aria-label="タスク一覧">
+      <div class="empty">ログインすると表示されます。</div>
+    </section>
+
+    <section class="composer">
+      <h2>AI秘書への指示 <small>基本コマンド版</small></h2>
+      <label for="command">自然な言葉でタスクを追加・完了</label>
+      <div class="form">
+        <input id="command" autocomplete="off"
+          placeholder="例：明日アカペラ動画を撮る">
+        <button id="sendBtn">送信</button>
+      </div>
+      <p class="hint">
+        「EYSカルテ完了」「明日動画を撮る」「今日何する？」
+        に対応。AIとの自由会話は未実装です。
+      </p>
+    </section>
+
+    <footer>
+      データはあなたのGoogleスプレッドシートに保存されます。
+      ページ自体には認証情報を保存しません。
+    </footer>
+  </main>
+</body>
+</html>
