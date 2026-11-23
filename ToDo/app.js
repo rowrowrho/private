@@ -211,6 +211,7 @@ function row(x, t) {
 function renderYouTube(list) {
   if (ytError) return list.append(emptyBox('YouTubeを読み込めませんでした：' + ytError));
   if (!yt) return list.append(emptyBox('YouTubeを確認中…'));
+  if (!yt.channels.length) return list.append(emptyBox('「YouTube連携」シートにまだデータがありません'));
   yt.channels.forEach(c => renderChannel(list, c));
 }
 
