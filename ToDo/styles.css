@@ -70,3 +70,5 @@ footer { text-align: center; margin-top: 28px; }
 .slot-ok { background: #e3f1e6; color: #2c5b34; border: 1px solid #2c5b34; }
 .slot-ng { background: #fdecec; color: #a32828; border: 1px solid #a32828; }
 .task.plain { padding-left: 16px; }
+.ch-title { font-size: 16px; margin: 18px 4px 2px; }
+.ch-title:first-child { margin-top: 4px; }
