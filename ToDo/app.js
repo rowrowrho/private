@@ -240,23 +240,23 @@ function renderChannel(list, c) {
     list.append(groupTitle(`投稿枠（${c.slotLabel}）　${filled}/${c.slots.length}枠 予約済み`));
     for (const s of c.slots) {
       const sub = s.video
-        ? s.video + (s.videoAt.slice(11) !== s.at.slice(11) ? `（${s.videoAt.slice(11)} に予約）` : '')
+        ? s.video + (s.videoAt.slice(11) !== s.at.slice(11) ? `（${s.videoAt.slice(11)} に予約）` : '') + (s.kind ? ' · ' + s.kind : '')
         : 'まだ予約されていません';
       list.append(simpleRow(mdw(s.at), sub, s.video ? ['slot-ok', '予約済み'] : ['slot-ng', '未予約']));
     }
     const extra = c.scheduled.filter(v => !c.slots.some(s => s.video === v.title && s.videoAt === v.at));
     if (extra.length) {
       list.append(groupTitle('そのほかの予約'));
-      extra.forEach(v => list.append(simpleRow(v.title, mdw(v.at) + ' 公開予定')));
+      extra.forEach(v => list.append(simpleRow(v.title, mdw(v.at) + ' 公開予定' + (v.kind ? ' · ' + v.kind : ''))));
     }
   } else if (c.scheduled.length) {
     list.append(groupTitle('予約中の動画'));
-    c.scheduled.forEach(v => list.append(simpleRow(v.title, mdw(v.at) + ' 公開予定', ['slot-ok', '予約済み'])));
+    c.scheduled.forEach(v => list.append(simpleRow(v.title, mdw(v.at) + ' 公開予定' + (v.kind ? ' · ' + v.kind : ''), ['slot-ok', '予約済み'])));
   }
 
   if (c.recent.length) {
     list.append(groupTitle('最近公開した動画'));
-    c.recent.forEach(v => list.append(simpleRow(v.title, mdw(v.at) + ' 公開')));
+    c.recent.forEach(v => list.append(simpleRow(v.title, mdw(v.at) + ' 公開' + (v.kind ? ' · ' + v.kind : ''))));
   }
 }
 
